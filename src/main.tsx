@@ -7,6 +7,7 @@ import './styles/background.css';
 import './styles/components.css';
 import './styles/auth.css';
 import './styles/settings.css';
+import './styles/dashboard.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

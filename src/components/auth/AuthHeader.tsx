@@ -6,7 +6,7 @@ interface AuthHeaderProps {
 }
 
 export default function AuthHeader({
-  size = 64,
+  size = 20,
   className = '',
 }: AuthHeaderProps) {
   return (
