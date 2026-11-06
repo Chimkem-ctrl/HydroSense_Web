@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
@@ -29,7 +30,6 @@ import {
   Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/common/Logo';
 import { getMockDataByRole } from '../data/mockRoleData';
 import type { MetricIconKey, NavIconKey } from '../data/mockRoleData';
@@ -299,6 +299,7 @@ function ActivityTable({ records }: { records: OperatorActivity[] }) {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const clock = useManilaClock();
 
   function handleLogout() {
@@ -324,6 +325,12 @@ export default function DashboardPage() {
   useEffect(() => {
     setActiveNavigation('Dashboard');
   }, [currentRole]);
+
+  useEffect(() => {
+    const target = (location.state as { target?: string } | null)?.target;
+    if (target) window.setTimeout(() => goToSection(target), 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const tank = tanks.find((item) => item.id === selectedTankId) ?? tanks[0];
   const tankAlerts = alerts.filter((alert) => alert.tankId === tank.id);
@@ -419,11 +426,11 @@ export default function DashboardPage() {
             <span className="status-pulse" />
             <div><b>System operational</b><span>All sensors responding</span></div>
           </div>
-          <div className="sidebar-user">
+          <button type="button" className="sidebar-user" aria-label="Open profile" onClick={() => navigate('/profile')}>
             <span className="dashboard-avatar">{profile.initials}</span>
             <div><b>{profile.fullName}</b><span>{profile.title}</span></div>
             <ChevronDown size={15} />
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -469,8 +476,8 @@ export default function DashboardPage() {
             {currentRole === 'admin' && (
               <Link to="/admin/users" className="topbar-link"><Users size={15} /> User Management</Link>
             )}
-            <div className="topbar-admin"><span className="dashboard-avatar">{profile.initials}</span><div><b>{profile.fullName}</b><span>{profile.shortTitle}</span></div>            <ChevronDown size={15} /></div>
-                        <button type="button" className="topbar-logout" onClick={handleLogout}><LogOut size={15} /> Log out</button>
+            <button type="button" className="topbar-admin" aria-label="Open profile" onClick={() => navigate('/profile')}><span className="dashboard-avatar">{profile.initials}</span><div><b>{profile.fullName}</b><span>{profile.shortTitle}</span></div><ChevronDown size={15} /></button>
+            <button type="button" className="topbar-logout" onClick={handleLogout}><LogOut size={15} /> Log out</button>
           </div>
         </header>
 
