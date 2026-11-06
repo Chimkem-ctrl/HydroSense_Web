@@ -224,12 +224,6 @@
 .topbar-admin {
   display: flex;
   align-items: center;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
 .topbar-page-title {
