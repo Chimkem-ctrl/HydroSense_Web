@@ -350,6 +350,7 @@ export default function DashboardPage() {
     const rows = [
       ['Metric', 'Value', 'Unit', 'Tank'],
       ['Dissolved Oxygen', tank.dissolvedOxygen.toFixed(1), 'mg/L', tank.name],
+      ['Configured DO minimum', threshold.toFixed(1), 'mg/L', tank.name],
       ['Temperature', tank.temperature.toFixed(1), '°C', tank.name],
       ['pH', tank.ph.toFixed(1), 'pH', tank.name],
       ['Salinity', 'Not measured', '', tank.name],
@@ -360,8 +361,10 @@ export default function DashboardPage() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `${tank.id}-demonstration-report.csv`;
+    document.body.append(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     setNotice('Demonstration report downloaded.');
   }
 
