@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
@@ -291,6 +292,8 @@ function ActivityTable({ records }: { records: OperatorActivity[] }) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const clock = useManilaClock();
   const [selectedTankId, setSelectedTankId] = useState(tanks[0].id);
   const [alerts, setAlerts] = useState(dashboardAlerts);
@@ -305,6 +308,12 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const [notice, setNotice] = useState('');
   const [activeNavigation, setActiveNavigation] = useState('Dashboard');
+
+  useEffect(() => {
+    const target = (location.state as { target?: string } | null)?.target;
+    if (target) window.setTimeout(() => goToSection(target), 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const tank = tanks.find((item) => item.id === selectedTankId) ?? tanks[0];
   const tankAlerts = alerts.filter((alert) => alert.tankId === tank.id);
@@ -397,11 +406,11 @@ export default function DashboardPage() {
             <span className="status-pulse" />
             <div><b>System operational</b><span>All sensors responding</span></div>
           </div>
-          <div className="sidebar-user">
+          <button type="button" className="sidebar-user" aria-label="Open profile" onClick={() => navigate('/profile')}>
             <span className="dashboard-avatar">DM</span>
             <div><b>Dario Miñoza</b><span>System Administrator</span></div>
             <ChevronDown size={15} />
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -444,7 +453,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            <div className="topbar-admin"><span className="dashboard-avatar">DM</span><div><b>Dario Miñoza</b><span>Administrator</span></div><ChevronDown size={15} /></div>
+            <button type="button" className="topbar-admin" aria-label="Open profile" onClick={() => navigate('/profile')}><span className="dashboard-avatar">DM</span><div><b>Dario Miñoza</b><span>Administrator</span></div><ChevronDown size={15} /></button>
           </div>
         </header>
 
