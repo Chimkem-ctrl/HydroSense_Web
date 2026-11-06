@@ -2082,6 +2082,55 @@
   }
 }
 
+.topbar-link,
+.topbar-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--dash-border);
+  border-radius: 10px;
+  color: var(--dash-text) !important;
+  background: var(--dash-panel);
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.topbar-link:hover,
+.topbar-logout:hover,
+.topbar-link.is-active {
+  border-color: var(--dash-aqua);
+  color: var(--dash-aqua) !important;
+}
+
+.role-select {
+  padding: 7px 10px;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  color: var(--dash-text);
+  background: var(--dash-panel-raised);
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--dash-aqua);
+  background: rgba(85, 199, 232, 0.12);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.form-error-banner {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  border-radius: 10px;
+  color: #ff9b9b;
+  background: rgba(255, 107, 107, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dashboard-shell *,
   .dashboard-shell *::before,

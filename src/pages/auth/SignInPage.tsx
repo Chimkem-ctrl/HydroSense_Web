@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthFooter from '../../components/auth/AuthFooter';
 import AuthHeader from '../../components/auth/AuthHeader';
 import AuthLayout from '../../components/auth/AuthLayout';
@@ -9,6 +9,8 @@ import GlassPanel from '../../components/common/GlassPanel';
 import PrimaryButton from '../../components/common/PrimaryButton';
 import { useAuthForm } from '../../hooks/useAuthForm';
 import { authService } from '../../services/authService';
+import { homeForRole, sessionService } from '../../services/sessionService';
+import { userService } from '../../services/userService';
 import type { SignInValues } from '../../types/auth.types';
 
 const initialValues: SignInValues = { email: '', password: '' };
@@ -24,12 +26,15 @@ function validate(values: SignInValues) {
 }
 
 export default function SignInPage() {
+  const navigate = useNavigate();
   const form = useAuthForm({
     initialValues,
     validate,
-    onSubmit: async () => {
-      const result = await authService.signIn();
-      form.setStatusMessage(result.message);
+    onSubmit: async (values) => {
+      await authService.signIn();
+      const user = userService.authenticate(values.email, values.password);
+      sessionService.set(user.email);
+      navigate(homeForRole[user.role], { replace: true });
     },
   });
 

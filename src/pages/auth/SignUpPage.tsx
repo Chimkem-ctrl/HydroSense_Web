@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthFooter from '../../components/auth/AuthFooter';
 import AuthHeader from '../../components/auth/AuthHeader';
 import AuthLayout from '../../components/auth/AuthLayout';
@@ -10,6 +10,8 @@ import GlassPanel from '../../components/common/GlassPanel';
 import PrimaryButton from '../../components/common/PrimaryButton';
 import { useAuthForm } from '../../hooks/useAuthForm';
 import { authService } from '../../services/authService';
+import { homeForRole, sessionService } from '../../services/sessionService';
+import { userService } from '../../services/userService';
 import type { SignUpValues } from '../../types/auth.types';
 
 const initialValues: SignUpValues = {
@@ -45,13 +47,20 @@ function validate(values: SignUpValues) {
 }
 
 export default function SignUpPage() {
+  const navigate = useNavigate();
   const [showTerms, setShowTerms] = useState(false);
   const form = useAuthForm({
     initialValues,
     validate,
-    onSubmit: async () => {
-      const result = await authService.signUp();
-      form.setStatusMessage(result.message);
+    onSubmit: async (values) => {
+      await authService.signUp();
+      const user = userService.register(
+        `${values.firstName.trim()} ${values.lastName.trim()}`,
+        values.email,
+        values.password,
+      );
+      sessionService.set(user.email);
+      navigate(homeForRole[user.role], { replace: true });
     },
   });
 

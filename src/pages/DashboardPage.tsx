@@ -14,6 +14,7 @@ import {
   Gauge,
   LayoutDashboard,
   Leaf,
+  LogOut,
   Menu,
   Search,
   Settings,
@@ -21,16 +22,22 @@ import {
   Thermometer,
   TrendingDown,
   TrendingUp,
+  Users,
   Waves,
   Wifi,
   X,
   Zap,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/common/Logo';
+import { getMockDataByRole } from '../data/mockRoleData';
+import type { MetricIconKey, NavIconKey } from '../data/mockRoleData';
+import { sessionService } from '../services/sessionService';
+import type { UserRole } from '../types/auth.types';
 import {
   dashboardAlerts,
   deviceSensors,
-  operatorActivities,
   tanks,
   trendSeries,
 } from '../data/mockDashboardData';
@@ -42,24 +49,24 @@ import type {
 type TrendRange = '24h' | '7d' | '30d';
 type AlertFilter = 'ALL' | 'CRITICAL' | 'WARNING';
 
-const navigation = [
-  { label: 'Dashboard', icon: LayoutDashboard, target: 'dashboard-top' },
-  { label: 'Monitoring', icon: Waves, target: 'water-quality' },
-  { label: 'Alerts', icon: AlertTriangle, target: 'active-alerts' },
-  { label: 'Operator Logs', icon: ClipboardList, target: 'operator-activity' },
-  { label: 'Devices', icon: Wifi, target: 'connected-devices' },
-  { label: 'Reports', icon: FileDown, target: 'water-trends' },
-  { label: 'Settings', icon: Settings, target: 'quick-actions' },
-];
+const navIcons: Record<NavIconKey, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  monitoring: Waves,
+  alerts: AlertTriangle,
+  logs: ClipboardList,
+  devices: Wifi,
+  reports: FileDown,
+  settings: Settings,
+};
 
-const summaryMetrics = [
-  { label: 'Total Tanks', value: '3', note: 'Across this hatchery', icon: Waves, tone: 'aqua' },
-  { label: 'Monitoring Devices', value: '3', note: 'Active monitoring', icon: Gauge, tone: 'blue' },
-  { label: 'Online Sensors', value: '3', note: 'All systems online', icon: Wifi, tone: 'green' },
-  { label: 'Active Alerts', value: '2', note: '1 critical · 1 warning', icon: AlertTriangle, tone: 'orange' },
-  { label: 'Critical Alerts', value: '1', note: 'Requires verification', icon: ShieldAlert, tone: 'critical' },
-  { label: 'Registered Operators', value: '5', note: 'Team members', icon: ClipboardList, tone: 'violet' },
-];
+const metricIcons: Record<MetricIconKey, LucideIcon> = {
+  tanks: Waves,
+  gauge: Gauge,
+  wifi: Wifi,
+  alert: AlertTriangle,
+  shield: ShieldAlert,
+  clipboard: ClipboardList,
+};
 
 function useManilaClock() {
   const [now, setNow] = useState(() => new Date());
@@ -291,7 +298,13 @@ function ActivityTable({ records }: { records: OperatorActivity[] }) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const clock = useManilaClock();
+
+  function handleLogout() {
+    sessionService.clear();
+    navigate('/signin', { replace: true });
+  }
   const [selectedTankId, setSelectedTankId] = useState(tanks[0].id);
   const [alerts, setAlerts] = useState(dashboardAlerts);
   const [alertFilter, setAlertFilter] = useState<AlertFilter>('ALL');
@@ -305,6 +318,12 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const [notice, setNotice] = useState('');
   const [activeNavigation, setActiveNavigation] = useState('Dashboard');
+  const [currentRole] = useState<UserRole>(() => sessionService.get()?.role ?? 'operator');
+  const { profile, navigation, metrics: summaryMetrics, activities } = getMockDataByRole(currentRole);
+
+  useEffect(() => {
+    setActiveNavigation('Dashboard');
+  }, [currentRole]);
 
   const tank = tanks.find((item) => item.id === selectedTankId) ?? tanks[0];
   const tankAlerts = alerts.filter((alert) => alert.tankId === tank.id);
@@ -316,13 +335,13 @@ export default function DashboardPage() {
     const matchesSearch = `${alert.title} ${alert.tankName} ${alert.description}`.toLowerCase().includes(search.toLowerCase());
     return matchesSeverity && matchesSearch;
   });
-  const filteredActivities = operatorActivities
+  const filteredActivities = activities
     .filter((record) =>
       `${record.operator} ${record.activity} ${record.tank} ${record.details}`
         .toLowerCase()
         .includes(search.toLowerCase()),
     )
-    .slice(0, activityExpanded ? operatorActivities.length : 4);
+    .slice(0, activityExpanded ? activities.length : 4);
 
   function acknowledgeAlert(id: string) {
     setAlerts((current) =>
@@ -373,14 +392,16 @@ export default function DashboardPage() {
       <aside className={`dashboard-sidebar${mobileNavOpen ? ' dashboard-sidebar--open' : ''}`}>
         <div className="dashboard-brand">
           <Logo size={34} className="dashboard-brand-logo" />
-          <div><strong>HydroSense</strong><span>ADMIN CONSOLE</span></div>
+          <div><strong>HydroSense</strong><span>{profile.consoleLabel}</span></div>
           <button type="button" className="dashboard-icon-button dashboard-mobile-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
             <X size={18} />
           </button>
         </div>
         <p className="dashboard-nav-label">WORKSPACE</p>
         <nav className="dashboard-nav" aria-label="Dashboard sections">
-          {navigation.map(({ label, icon: Icon, target }) => (
+          {navigation.map(({ label, icon, target }) => {
+            const Icon = navIcons[icon];
+            return (
             <button
               key={label}
               type="button"
@@ -390,7 +411,8 @@ export default function DashboardPage() {
               <Icon size={17} strokeWidth={1.8} /><span>{label}</span>
               {activeNavigation === label && <span className="nav-active-mark" />}
             </button>
-          ))}
+            );
+          })}
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-system-status">
@@ -398,8 +420,8 @@ export default function DashboardPage() {
             <div><b>System operational</b><span>All sensors responding</span></div>
           </div>
           <div className="sidebar-user">
-            <span className="dashboard-avatar">DM</span>
-            <div><b>Dario Miñoza</b><span>System Administrator</span></div>
+            <span className="dashboard-avatar">{profile.initials}</span>
+            <div><b>{profile.fullName}</b><span>{profile.title}</span></div>
             <ChevronDown size={15} />
           </div>
         </div>
@@ -444,7 +466,11 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            <div className="topbar-admin"><span className="dashboard-avatar">DM</span><div><b>Dario Miñoza</b><span>Administrator</span></div><ChevronDown size={15} /></div>
+            {currentRole === 'admin' && (
+              <Link to="/admin/users" className="topbar-link"><Users size={15} /> User Management</Link>
+            )}
+            <div className="topbar-admin"><span className="dashboard-avatar">{profile.initials}</span><div><b>{profile.fullName}</b><span>{profile.shortTitle}</span></div>            <ChevronDown size={15} /></div>
+                        <button type="button" className="topbar-logout" onClick={handleLogout}><LogOut size={15} /> Log out</button>
           </div>
         </header>
 
@@ -456,7 +482,7 @@ export default function DashboardPage() {
           <section className="dashboard-welcome">
             <div>
               <p className="dashboard-kicker">SATURDAY · HATCHERY OVERVIEW</p>
-              <h1>Welcome back, Dario<span>.</span></h1>
+              <h1>Welcome back, {profile.firstName}<span>.</span></h1>
               <p>Here&apos;s the current monitoring status of your hatchery.</p>
             </div>
             <div className="welcome-controls">
@@ -473,12 +499,15 @@ export default function DashboardPage() {
           </section>
 
           <section className="summary-grid" aria-label="Monitoring summary">
-            {summaryMetrics.map(({ label, value, note, icon: Icon, tone }) => (
-              <article className="dashboard-card summary-card" key={label}>
-                <div className={`summary-icon summary-icon--${tone}`}><Icon size={17} /></div>
-                <div className="summary-copy"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
-              </article>
-            ))}
+            {summaryMetrics.map(({ label, value, note, icon, tone }) => {
+              const Icon = metricIcons[icon];
+              return (
+                <article className="dashboard-card summary-card" key={label}>
+                  <div className={`summary-icon summary-icon--${tone}`}><Icon size={17} /></div>
+                  <div className="summary-copy"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
+                </article>
+              );
+            })}
           </section>
 
           <section className="dashboard-section tank-overview-section">
