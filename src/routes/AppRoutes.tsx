@@ -5,7 +5,7 @@ import SignUpPage from '../pages/auth/SignUpPage';
 import SplashScreen from '../pages/auth/SplashScreen';
 import WelcomePage from '../pages/auth/WelcomePage';
 import DashboardPage from '../pages/DashboardPage';
-import AccountSettingsPage from '../pages/settings/AccountSettingsPage';
+import ProfilePage from '../pages/profile/ProfilePage';
 
 export default function AppRoutes() {
   return (
@@ -16,7 +16,7 @@ export default function AppRoutes() {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/settings" element={<AccountSettingsPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<Navigate to="/welcome" replace />} />
     </Routes>
   );
