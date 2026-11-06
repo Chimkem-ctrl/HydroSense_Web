@@ -1,0 +1,224 @@
+.logo-frame {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-inline: auto;
+}
+
+.hydrosense-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logo-missing {
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.glass-panel {
+  position: relative;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.16));
+  border-radius: 17px;
+  background:
+    /* soft light bloom in the top-left corner */
+    radial-gradient(
+      120% 80% at 0% 0%,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0) 55%
+    ),
+    /* diagonal sheen fading into a cool shadow */
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.02) 45%,
+      rgba(5, 27, 42, 0.22)
+    ),
+    var(--panel-bg, rgba(10, 40, 60, 0.45));
+  box-shadow:
+    /* depth: wide ambient shadow plus a tight contact shadow */
+    0 24px 60px rgba(0, 8, 19, 0.35),
+    0 4px 14px rgba(0, 8, 19, 0.2),
+    /* edge light: bright top rim, faint bottom rim */
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    /* inner glow so the glass feels thick */
+    inset 0 0 28px rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(18px) saturate(160%) brightness(1.05);
+  backdrop-filter: blur(18px) saturate(160%) brightness(1.05);
+}
+
+.glass-panel h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.4rem;
+}
+
+.glass-panel h2 {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0 0 1.5rem;
+  opacity: 0.75;
+}
+
+.form-field {
+  min-width: 0;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  margin: 0 0 6px 2px;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.form-control,
+.password-control {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: var(--color-white);
+  background: var(--input-bg);
+  transition: border-color 160ms ease, background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.form-control {
+  padding: 10px 12px;
+}
+
+.form-control::placeholder,
+.password-control input::placeholder {
+  color: rgba(230, 239, 244, 0.64);
+}
+
+.form-control:focus,
+.password-control:focus-within {
+  border-color: rgba(85, 199, 232, 0.9);
+  outline: none;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(85, 199, 232, 0.14);
+}
+
+.form-control.has-error,
+.password-control.has-error {
+  border-color: rgba(255, 160, 153, 0.9);
+}
+
+.password-control {
+  display: flex;
+  align-items: center;
+  padding-right: 5px;
+}
+
+.password-control input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 9px 5px 9px 12px;
+  border: 0;
+  outline: 0;
+  color: var(--color-white);
+  background: transparent;
+}
+
+.password-toggle {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.84);
+  background: transparent;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: var(--color-aqua);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  min-height: 39px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  color: var(--color-white);
+  background: rgba(255, 255, 255, 0.13);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease,
+    background-color 160ms ease, box-shadow 160ms ease;
+  cursor: pointer;
+}
+
+.primary-button {
+  min-width: 116px;
+  padding: 9px 22px;
+}
+
+.secondary-button {
+  min-width: 104px;
+  padding: 8px 18px;
+}
+
+.primary-button:hover:not(:disabled),
+.secondary-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(85, 199, 232, 0.8);
+  background: rgba(85, 199, 232, 0.22);
+  box-shadow: 0 7px 20px rgba(0, 10, 20, 0.2);
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.field-error {
+  display: block;
+  margin: 5px 2px 0;
+  color: var(--color-error);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.form-status {
+  margin: 12px 0 0;
+  color: #dff8ff;
+  font-size: 0.77rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
