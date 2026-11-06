@@ -11,6 +11,8 @@
   --color-white: #fff;
   --color-muted: #d8e2e8;
   --color-error: #ffd0cd;
+  --color-success: #4ade80;
+  --color-danger: #ff6b6b;
   --panel-bg: rgba(8, 34, 52, 0.32);
   --panel-border: rgba(255, 255, 255, 0.3);
   --input-bg: rgba(255, 255, 255, 0.1);
