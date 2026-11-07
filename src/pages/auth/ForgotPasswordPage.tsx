@@ -24,8 +24,8 @@ export default function ForgotPasswordPage() {
   const form = useAuthForm({
     initialValues,
     validate,
-    onSubmit: async () => {
-      const result = await authService.requestPasswordReset();
+    onSubmit: async (values) => {
+      const result = await authService.requestPasswordReset(values.email);
       form.setStatusMessage(result.message);
     },
   });

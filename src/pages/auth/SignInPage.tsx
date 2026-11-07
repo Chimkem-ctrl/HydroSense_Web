@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthFooter from '../../components/auth/AuthFooter';
 import AuthHeader from '../../components/auth/AuthHeader';
 import AuthLayout from '../../components/auth/AuthLayout';
@@ -8,7 +8,7 @@ import FormInput from '../../components/common/FormInput';
 import GlassPanel from '../../components/common/GlassPanel';
 import PrimaryButton from '../../components/common/PrimaryButton';
 import { useAuthForm } from '../../hooks/useAuthForm';
-import { authService } from '../../services/authService';
+import { authService, DEMO_ADMIN_CREDENTIALS } from '../../services/authService';
 import type { SignInValues } from '../../types/auth.types';
 
 const initialValues: SignInValues = { email: '', password: '' };
@@ -24,12 +24,13 @@ function validate(values: SignInValues) {
 }
 
 export default function SignInPage() {
+  const navigate = useNavigate();
   const form = useAuthForm({
     initialValues,
     validate,
-    onSubmit: async () => {
-      const result = await authService.signIn();
-      form.setStatusMessage(result.message);
+    onSubmit: async (values) => {
+      const result = await authService.signIn(values.email, values.password);
+      navigate(result.redirectPath, { replace: true });
     },
   });
 
@@ -38,8 +39,8 @@ export default function SignInPage() {
       <div className="auth-page page-enter">
         <AuthHeader />
         <GlassPanel className="auth-panel signin-panel">
-          <h1 className="glass-title">Welcome Back!</h1>
-          <h2 className="glass-subtitle">Sign in to your account</h2>
+          <h1 className="glass-title">Welcome Back</h1>
+          <h2 className="glass-subtitle">Sign in to your HydroSense account</h2>
           <form onSubmit={form.handleSubmit} noValidate>
             <FormInput
               label="Email"
@@ -81,6 +82,13 @@ export default function SignInPage() {
           <AuthFooter>
             Don&apos;t have an account? <Link to="/signup">Sign Up</Link>
           </AuthFooter>
+          <div className="demo-login-box">
+            <strong>Administrator demo access</strong>
+            <span>Email: {DEMO_ADMIN_CREDENTIALS.email}</span>
+            <span>Password: {DEMO_ADMIN_CREDENTIALS.password}</span>
+            <small>Operator accounts are created from Sign Up. Sign-in routes each account to its own dashboard.</small>
+          </div>
+          <p className="auth-demo-disclaimer">Demo only: credentials are checked in this browser. Do not use a real password.</p>
         </GlassPanel>
       </div>
     </AuthLayout>

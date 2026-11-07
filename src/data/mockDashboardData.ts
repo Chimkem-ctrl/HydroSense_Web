@@ -7,6 +7,8 @@ export interface Tank {
   ph: number;
   sensors: number;
   lastReading: string;
+  hardwareId?: string;
+  hardwareConnected?: boolean;
 }
 
 export interface DashboardAlert {
@@ -43,6 +45,8 @@ export const tanks: Tank[] = [
     ph: 7.2,
     sensors: 3,
     lastReading: '09:32 AM',
+    hardwareId: 'HS-001',
+    hardwareConnected: true,
   },
   {
     id: 'tank-02',
@@ -53,6 +57,8 @@ export const tanks: Tank[] = [
     ph: 7.4,
     sensors: 3,
     lastReading: '09:30 AM',
+    hardwareId: 'HS-002',
+    hardwareConnected: true,
   },
   {
     id: 'tank-03',
@@ -63,8 +69,51 @@ export const tanks: Tank[] = [
     ph: 7.1,
     sensors: 3,
     lastReading: '09:28 AM',
+    hardwareId: 'HS-003',
+    hardwareConnected: true,
   },
 ];
+
+const TANK_REGISTRY_KEY = 'hydrosense.tanks.v1';
+
+function isTank(value: unknown): value is Tank {
+  if (typeof value !== 'object' || value === null) return false;
+  const tank = value as Partial<Tank>;
+  return typeof tank.id === 'string' &&
+    typeof tank.name === 'string' &&
+    typeof tank.type === 'string' &&
+    typeof tank.dissolvedOxygen === 'number' &&
+    typeof tank.temperature === 'number' &&
+    typeof tank.ph === 'number' &&
+    typeof tank.sensors === 'number' &&
+    typeof tank.lastReading === 'string' &&
+    (tank.hardwareId === undefined || typeof tank.hardwareId === 'string') &&
+    (tank.hardwareConnected === undefined || typeof tank.hardwareConnected === 'boolean');
+}
+
+export function readTankRegistry(): Tank[] {
+  const saved = window.localStorage.getItem(TANK_REGISTRY_KEY);
+  if (saved === null) return tanks;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(saved);
+  } catch {
+    throw new Error('Saved tank data could not be read. Clear this site’s tank data and try again.');
+  }
+  if (!Array.isArray(parsed) || !parsed.every(isTank)) {
+    throw new Error('Saved tank data is invalid. Clear this site’s tank data and try again.');
+  }
+  return parsed;
+}
+
+export function saveTankRegistry(value: Tank[]) {
+  try {
+    window.localStorage.setItem(TANK_REGISTRY_KEY, JSON.stringify(value));
+  } catch (error) {
+    throw new Error(`Could not save tank changes in this browser: ${String(error)}`);
+  }
+}
 
 export const dashboardAlerts: DashboardAlert[] = [
   {

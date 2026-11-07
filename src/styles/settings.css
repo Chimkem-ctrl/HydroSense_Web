@@ -120,6 +120,35 @@
   overflow-wrap: anywhere;
 }
 
+.settings-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-info-row b {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.settings-info-row span {
+  text-align: right;
+}
+
+.operator-profile-grid {
+  display: grid;
+  width: min(100%, 560px);
+}
+
+.operator-profile-back {
+  display: inline-block;
+  margin-top: 7px;
+  color: var(--color-aqua);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
 .session-group {
   margin-top: 6px;
   font-weight: 600;

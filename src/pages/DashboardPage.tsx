@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -14,11 +15,13 @@ import {
   Gauge,
   LayoutDashboard,
   Leaf,
+  LogOut,
   Menu,
   Search,
   Settings,
   ShieldAlert,
   Thermometer,
+  Plus,
   TrendingDown,
   TrendingUp,
   Waves,
@@ -26,30 +29,37 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../components/common/Logo';
+import { getCurrentUser, signOut } from '../services/authService';
 import {
   dashboardAlerts,
   deviceSensors,
   operatorActivities,
+  readTankRegistry,
+  saveTankRegistry,
   tanks,
   trendSeries,
 } from '../data/mockDashboardData';
 import type {
   DashboardAlert,
   OperatorActivity,
+  Tank,
 } from '../data/mockDashboardData';
 
 type TrendRange = '24h' | '7d' | '30d';
 type AlertFilter = 'ALL' | 'CRITICAL' | 'WARNING';
 
 const navigation = [
-  { label: 'Dashboard', icon: LayoutDashboard, target: 'dashboard-top' },
-  { label: 'Monitoring', icon: Waves, target: 'water-quality' },
-  { label: 'Alerts', icon: AlertTriangle, target: 'active-alerts' },
-  { label: 'Operator Logs', icon: ClipboardList, target: 'operator-activity' },
-  { label: 'Devices', icon: Wifi, target: 'connected-devices' },
-  { label: 'Reports', icon: FileDown, target: 'water-trends' },
-  { label: 'Settings', icon: Settings, target: 'quick-actions' },
+  { label: 'Dashboard', icon: LayoutDashboard, target: '/dashboard' },
+  { label: 'Monitoring', icon: Waves, target: '/dashboard/monitoring' },
+  { label: 'Alerts', icon: AlertTriangle, target: '/dashboard/alerts' },
+  { label: 'Operator Logs', icon: ClipboardList, target: '/dashboard/logs' },
+  { label: 'Devices', icon: Wifi, target: '/dashboard/devices' },
+  { label: 'Tanks & Hardware', icon: Plus, target: '/dashboard/tanks' },
+  { label: 'Reports', icon: FileDown, target: '/dashboard/reports' },
+  { label: 'Quick Actions', icon: Zap, target: '/dashboard/actions' },
+  { label: 'Settings', icon: Settings, target: '/settings' },
 ];
 
 const summaryMetrics = [
@@ -292,7 +302,16 @@ function ActivityTable({ records }: { records: OperatorActivity[] }) {
 
 export default function DashboardPage() {
   const clock = useManilaClock();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = getCurrentUser();
+  const adminName = user ? `${user.firstName} ${user.lastName}` : 'Administrator';
+  const adminInitials = user ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase() : 'AD';
+  const currentPage = location.pathname === '/dashboard'
+    ? 'dashboard'
+    : location.pathname.split('/')[2] ?? 'dashboard';
   const [selectedTankId, setSelectedTankId] = useState(tanks[0].id);
+  const [availableTanks, setAvailableTanks] = useState(tanks);
   const [alerts, setAlerts] = useState(dashboardAlerts);
   const [alertFilter, setAlertFilter] = useState<AlertFilter>('ALL');
   const [trendRange, setTrendRange] = useState<TrendRange>('24h');
@@ -304,9 +323,23 @@ export default function DashboardPage() {
   const [threshold, setThreshold] = useState(4);
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const [notice, setNotice] = useState('');
-  const [activeNavigation, setActiveNavigation] = useState('Dashboard');
+  const [newTankName, setNewTankName] = useState('');
+  const [newTankType, setNewTankType] = useState('');
+  const [hardwareDrafts, setHardwareDrafts] = useState<Record<string, string>>({});
 
-  const tank = tanks.find((item) => item.id === selectedTankId) ?? tanks[0];
+  useEffect(() => {
+    try {
+      const savedTanks = readTankRegistry();
+      setAvailableTanks(savedTanks);
+      if (!savedTanks.some((item) => item.id === selectedTankId)) {
+        setSelectedTankId(savedTanks[0]?.id ?? '');
+      }
+    } catch (error) {
+      setNotice(String(error));
+    }
+  }, []);
+
+  const tank = availableTanks.find((item) => item.id === selectedTankId) ?? availableTanks[0] ?? tanks[0];
   const tankAlerts = alerts.filter((alert) => alert.tankId === tank.id);
   const criticalAlert = tankAlerts.some((alert) => alert.severity === 'CRITICAL');
   const overallStatus = criticalAlert ? 'CRITICAL' : tankAlerts.length ? 'WARNING' : 'SAFE';
@@ -335,10 +368,86 @@ export default function DashboardPage() {
   }
 
   function goToSection(target: string) {
-    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const activeItem = navigation.find((item) => item.target === target);
-    if (activeItem) setActiveNavigation(activeItem.label);
+    const routes: Record<string, string> = {
+      'active-alerts': '/dashboard/alerts',
+      'operator-activity': '/dashboard/logs',
+      'water-trends': '/dashboard/reports',
+    };
+    navigate(routes[target] ?? '/dashboard');
     setMobileNavOpen(false);
+  }
+
+  function persistTankChanges(nextTanks: Tank[]) {
+    try {
+      saveTankRegistry(nextTanks);
+      setAvailableTanks(nextTanks);
+      return true;
+    } catch (error) {
+      setNotice(String(error));
+      return false;
+    }
+  }
+
+  function addTank(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = newTankName.trim();
+    const type = newTankType.trim();
+    if (!name || !type) {
+      setNotice('Enter both a tank name and tank type.');
+      return;
+    }
+    if (availableTanks.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+      setNotice('A tank with that name already exists.');
+      return;
+    }
+    const nextTank: Tank = {
+      id: `tank-${Date.now()}-${availableTanks.length + 1}`,
+      name,
+      type,
+      dissolvedOxygen: 7,
+      temperature: 28.5,
+      ph: 7.2,
+      sensors: 0,
+      lastReading: 'No readings yet',
+      hardwareConnected: false,
+    };
+    if (!persistTankChanges([...availableTanks, nextTank])) return;
+    setSelectedTankId(nextTank.id);
+    setNewTankName('');
+    setNewTankType('');
+    setNotice(`${name} added. Connect its monitoring hardware to begin receiving readings.`);
+  }
+
+  function connectHardware(tankToConnect: Tank) {
+    const hardwareId = (hardwareDrafts[tankToConnect.id] ?? tankToConnect.hardwareId ?? '').trim();
+    if (!hardwareId) {
+      setNotice('Enter the monitoring hardware ID before connecting it.');
+      return;
+    }
+    if (availableTanks.some((item) => item.id !== tankToConnect.id && item.hardwareId?.toLowerCase() === hardwareId.toLowerCase())) {
+      setNotice('That hardware ID is already connected to another tank.');
+      return;
+    }
+    const nextTanks = availableTanks.map((item) => item.id === tankToConnect.id
+      ? { ...item, hardwareId, hardwareConnected: true, sensors: 3 }
+      : item);
+    if (persistTankChanges(nextTanks)) {
+      setNotice(`${hardwareId} linked to ${tankToConnect.name}. This demo records the hardware association; a live gateway connection is not configured.`);
+    }
+  }
+
+  function removeTank(tankToRemove: Tank) {
+    if (availableTanks.length <= 1) {
+      setNotice('At least one tank must remain available.');
+      return;
+    }
+    if (!window.confirm(`Remove ${tankToRemove.name} and its hardware association? This cannot be undone.`)) {
+      return;
+    }
+    const nextTanks = availableTanks.filter((item) => item.id !== tankToRemove.id);
+    if (!persistTankChanges(nextTanks)) return;
+    if (selectedTankId === tankToRemove.id) setSelectedTankId(nextTanks[0].id);
+    setNotice(`${tankToRemove.name} removed.`);
   }
 
   function refreshReadings() {
@@ -381,15 +490,15 @@ export default function DashboardPage() {
         <p className="dashboard-nav-label">WORKSPACE</p>
         <nav className="dashboard-nav" aria-label="Dashboard sections">
           {navigation.map(({ label, icon: Icon, target }) => (
-            <button
+            <Link
               key={label}
-              type="button"
-              className={`dashboard-nav-item${activeNavigation === label ? ' is-active' : ''}`}
-              onClick={() => goToSection(target)}
+              className={`dashboard-nav-item${location.pathname === target ? ' is-active' : ''}`}
+              to={target}
+              onClick={() => setMobileNavOpen(false)}
             >
               <Icon size={17} strokeWidth={1.8} /><span>{label}</span>
-              {activeNavigation === label && <span className="nav-active-mark" />}
-            </button>
+              {location.pathname === target && <span className="nav-active-mark" />}
+            </Link>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -398,8 +507,8 @@ export default function DashboardPage() {
             <div><b>System operational</b><span>All sensors responding</span></div>
           </div>
           <div className="sidebar-user">
-            <span className="dashboard-avatar">DM</span>
-            <div><b>Dario Miñoza</b><span>System Administrator</span></div>
+            <span className="dashboard-avatar">{adminInitials}</span>
+            <div><b>{adminName}</b><span>{user?.position ?? 'System Administrator'}</span></div>
             <ChevronDown size={15} />
           </div>
         </div>
@@ -410,12 +519,18 @@ export default function DashboardPage() {
           <button type="button" className="dashboard-icon-button dashboard-mobile-menu" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}>
             <Menu size={20} />
           </button>
-          <div className="topbar-page-title"><span>Workspace</span><ChevronRight size={13} /><b>Dashboard</b></div>
+          <div className="topbar-page-title"><span>Workspace</span><ChevronRight size={13} /><b>{navigation.find((item) => item.target === location.pathname)?.label ?? 'Dashboard'}</b></div>
           <div className="topbar-tools">
             <label className="dashboard-search">
               <Search size={16} />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dashboard..." aria-label="Search dashboard" />
               {search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}><X size={14} /></button>}
+            </label>
+            <label className="dashboard-tank-switcher">
+              <Waves size={14} />
+              <select aria-label="Select available tank" value={selectedTankId} onChange={(event) => setSelectedTankId(event.target.value)}>
+                {availableTanks.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
             </label>
             <div className="topbar-date"><Clock3 size={15} /><span>{clock.date}</span><b>{clock.time} PHT</b></div>
             <div className="notification-wrap">
@@ -444,7 +559,8 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            <div className="topbar-admin"><span className="dashboard-avatar">DM</span><div><b>Dario Miñoza</b><span>Administrator</span></div><ChevronDown size={15} /></div>
+            <div className="topbar-admin"><span className="dashboard-avatar">{adminInitials}</span><div><b>{adminName}</b><span>{user?.position ?? 'Administrator'}</span></div><ChevronDown size={15} /></div>
+            <Link to="/welcome" className="dashboard-signout" onClick={signOut}><LogOut size={14} /><span>Sign out</span></Link>
           </div>
         </header>
 
@@ -453,22 +569,16 @@ export default function DashboardPage() {
             <span className="demo-pulse" /> DEMONSTRATION DATA <span>Sample readings and alerts are for interface demonstration only.</span>
           </div>
 
+          {currentPage === 'dashboard' && (
+            <>
           <section className="dashboard-welcome">
             <div>
               <p className="dashboard-kicker">SATURDAY · HATCHERY OVERVIEW</p>
-              <h1>Welcome back, Dario<span>.</span></h1>
+              <h1>Welcome back, {user?.firstName ?? 'Administrator'}<span>.</span></h1>
               <p>Here&apos;s the current monitoring status of your hatchery.</p>
             </div>
             <div className="welcome-controls">
-              <label htmlFor="tank-select">CURRENT TANK</label>
-              <div className="tank-select-wrap">
-                <Waves size={16} />
-                <select id="tank-select" value={selectedTankId} onChange={(event) => setSelectedTankId(event.target.value)}>
-                  {tanks.map((item) => <option key={item.id} value={item.id}>{item.name} – {item.type}</option>)}
-                </select>
-                <ChevronDown size={15} />
-              </div>
-              <span className="last-updated">Last updated {new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: true }).format(lastUpdated)} PHT</span>
+              <span className="last-updated">Selected: {tank.name} · Last updated {new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hour12: true }).format(lastUpdated)} PHT</span>
             </div>
           </section>
 
@@ -476,7 +586,19 @@ export default function DashboardPage() {
             {summaryMetrics.map(({ label, value, note, icon: Icon, tone }) => (
               <article className="dashboard-card summary-card" key={label}>
                 <div className={`summary-icon summary-icon--${tone}`}><Icon size={17} /></div>
-                <div className="summary-copy"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
+                <div className="summary-copy">
+                  <span>{label}</span>
+                  <strong>
+                    {label === 'Total Tanks'
+                      ? availableTanks.length
+                      : label === 'Monitoring Devices'
+                        ? availableTanks.filter((item) => item.hardwareConnected !== false).length
+                        : label === 'Online Sensors'
+                          ? availableTanks.filter((item) => item.hardwareConnected !== false).reduce((count, item) => count + item.sensors, 0)
+                          : value}
+                  </strong>
+                  <small>{label === 'Total Tanks' ? 'Available to monitor' : note}</small>
+                </div>
               </article>
             ))}
           </section>
@@ -491,23 +613,26 @@ export default function DashboardPage() {
                   <h3>{tank.name} <span>— {tank.type}</span></h3>
                   <div className="tank-badges">
                     <StatusBadge tone={overallStatus === 'CRITICAL' ? 'critical' : overallStatus === 'WARNING' ? 'warning' : 'safe'}>{overallStatus}</StatusBadge>
-                    <StatusBadge tone="online">MONITORING ACTIVE</StatusBadge>
+                    <StatusBadge tone={tank.hardwareConnected === false ? 'warning' : 'online'}>{tank.hardwareConnected === false ? 'HARDWARE NOT CONNECTED' : 'MONITORING ACTIVE'}</StatusBadge>
                   </div>
                 </div>
                 <div className="tank-status-facts">
-                  <div><span>Connected sensors</span><b><Wifi size={14} /> {tank.sensors} of 3 online</b></div>
+                  <div><span>Connected sensors</span><b><Wifi size={14} /> {tank.hardwareConnected === false ? '0 of 3 online' : `${tank.sensors} of 3 online`}</b></div>
                   <div><span>Active alerts</span><b className={tankAlerts.length ? 'fact-warning' : ''}><AlertTriangle size={14} /> {tankAlerts.length} active</b></div>
                   <div><span>Last successful reading</span><b><Clock3 size={14} /> {tank.lastReading}</b></div>
                   <div><span>Last data transmission</span><b><Zap size={14} /> {tank.lastReading}</b></div>
                 </div>
               </div>
               <div className="tank-status-footer">
-                <span><span className="status-pulse" /> Receiving live sensor data</span>
+                <span>{tank.hardwareConnected === false ? 'Monitoring hardware is not connected' : <><span className="status-pulse" /> Demo sensors linked</>}</span>
                 <span>Thresholds are configurable demo values, not hatchery standards.</span>
               </div>
             </article>
           </section>
+            </>
+          )}
 
+          {currentPage === 'monitoring' && (
           <section className="dashboard-section" id="water-quality">
             <SectionHeading title="Live Water Quality" description={`${tank.name} · Latest readings at ${tank.lastReading}`} action={<span className="section-live-indicator"><span className="status-pulse" /> LIVE</span>} />
             <div className="parameter-grid">
@@ -544,7 +669,9 @@ export default function DashboardPage() {
               </article>
             </div>
           </section>
+          )}
 
+          {currentPage === 'reports' && (
           <section className="dashboard-section" id="water-trends">
             <SectionHeading
               title="Water Quality Trends"
@@ -563,7 +690,10 @@ export default function DashboardPage() {
               <TrendChart {...trendSeries.ph} range={trendRange} />
             </div>
           </section>
+          )}
 
+          {currentPage === 'alerts' && (
+          <>
           <section className="dashboard-section" id="active-alerts">
             <SectionHeading
               title="Active Alerts"
@@ -614,8 +744,10 @@ export default function DashboardPage() {
               </article>
             </div>
           </section>
+          </>
+          )}
 
-          <div className="dashboard-lower-grid">
+          {currentPage === 'logs' && (
             <section className="dashboard-section" id="operator-activity">
               <SectionHeading
                 title="Recent Operator Activity"
@@ -626,13 +758,18 @@ export default function DashboardPage() {
                 <ActivityTable records={filteredActivities} />
               </article>
             </section>
+          )}
+
+          {currentPage === 'devices' && (
             <section className="dashboard-section" id="connected-devices">
-              <SectionHeading title="Connected Devices" description={`${tank.name} sensor connectivity`} action={<span className="device-online-count"><Wifi size={14} /> 3 online</span>} />
+              <SectionHeading title="Connected Devices" description={`${tank.name} sensor connectivity`} action={<span className="device-online-count"><Wifi size={14} /> {tank.hardwareConnected === false ? 0 : tank.sensors} online</span>} />
               <article className="dashboard-card device-card">
                 <div className="device-table-head"><span>DEVICE / SENSOR</span><span>STATUS</span><span>LAST UPDATE</span></div>
-                {deviceSensors.map((device) => (
+                {tank.hardwareConnected === false ? (
+                  <p className="dashboard-empty">No monitoring hardware is connected to {tank.name}.</p>
+                ) : deviceSensors.map((device) => (
                   <div className="device-row" key={device.sensor}>
-                    <span className="device-name"><span className="device-icon"><Activity size={15} /></span>                    <span><b>{device.sensor}</b><small>HS-{String(Number(tank.id.slice(-2))).padStart(3, '0')}</small></span></span>
+                    <span className="device-name"><span className="device-icon"><Activity size={15} /></span>                    <span><b>{device.sensor}</b><small>{tank.hardwareId ?? `HS-${String(Number(tank.id.slice(-2))).padStart(3, '0')}`}</small></span></span>
                     <StatusBadge tone="online">{device.status}</StatusBadge>
                     <span className="device-time">{tank.lastReading}</span>
                   </div>
@@ -640,8 +777,36 @@ export default function DashboardPage() {
                 <div className="device-footer"><span className="status-pulse" /> All connected sensors are transmitting</div>
               </article>
             </section>
-          </div>
+          )}
 
+          {currentPage === 'tanks' && (
+          <section className="dashboard-section tank-management-section">
+            <SectionHeading title="Tanks & Monitoring Hardware" description="Register available tanks and link each one to its water monitoring hardware." />
+            <article className="dashboard-card tank-management-card">
+              <form className="tank-create-form" onSubmit={addTank}>
+                <label>Tank name<input value={newTankName} onChange={(event) => setNewTankName(event.target.value)} placeholder="e.g. Tank 04" required /></label>
+                <label>Tank type<input value={newTankType} onChange={(event) => setNewTankType(event.target.value)} placeholder="e.g. Nursery Tank" required /></label>
+                <button type="submit" className="dashboard-button dashboard-button--primary"><Plus size={14} /> Add tank</button>
+              </form>
+              <div className="tank-management-list">
+                {availableTanks.map((item) => (
+                  <div className="tank-management-row" key={item.id}>
+                    <div><b>{item.name}</b><span>{item.type}</span></div>
+                    <label>Hardware ID<input value={hardwareDrafts[item.id] ?? item.hardwareId ?? ''} onChange={(event) => setHardwareDrafts((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Enter device ID" /></label>
+                    <span className={`tank-hardware-status${item.hardwareConnected === false ? ' is-disconnected' : ''}`}>{item.hardwareConnected === false ? 'Not connected' : 'Connected'}</span>
+                    <div className="tank-management-actions">
+                      <button type="button" className="dashboard-button dashboard-button--subtle" onClick={() => connectHardware(item)}>{item.hardwareConnected === false ? 'Connect hardware' : 'Update connection'}</button>
+                      <button type="button" className="dashboard-button dashboard-button--danger" onClick={() => removeTank(item)} disabled={availableTanks.length <= 1}>Remove tank</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="tank-hardware-note">Hardware links are saved in this browser for demonstration. A live hardware gateway or sensor API must be configured to receive real readings.</p>
+            </article>
+          </section>
+          )}
+
+          {currentPage === 'actions' && (
           <section className="dashboard-section quick-actions-section" id="quick-actions">
             <SectionHeading title="Quick Actions" description="Common monitoring tasks, all within this dashboard." />
             <div className="quick-actions-grid">
@@ -651,6 +816,7 @@ export default function DashboardPage() {
               <button type="button" onClick={refreshReadings}><span><Zap size={17} /></span><b>Refresh Readings</b><ChevronRight size={15} /></button>
             </div>
           </section>
+          )}
 
           <footer className="dashboard-footer">
             <span>HydroSense Monitoring Console</span>

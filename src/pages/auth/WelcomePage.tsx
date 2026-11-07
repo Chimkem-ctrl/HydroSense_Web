@@ -24,6 +24,9 @@ export default function WelcomePage() {
               Sign Up
             </Link>
           </div>
+          <Link className="operator-entry-link" to="/operator">
+            Operator workspace <span aria-hidden="true">→</span>
+          </Link>
         </GlassPanel>
       </div>
     </AuthLayout>
