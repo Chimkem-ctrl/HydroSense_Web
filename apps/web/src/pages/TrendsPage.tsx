@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ReferenceArea, ResponsiveContainer, CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
-import { formatManilaDateTime } from '@hydrosense/shared';
+import { ReferenceArea, ReferenceDot, ResponsiveContainer, CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
+import { calculateParameterStatistics, formatManilaDateTime } from '@hydrosense/shared';
 import type { MeasuredParameter, Reading } from '@hydrosense/shared';
 import { useSelectedTank } from '../app/tank/TankContext';
 import { tierConfig } from '../app/config';
@@ -47,7 +47,12 @@ export default function TrendsPage() {
     enabled: Boolean(tankId) && tierConfig.analytics,
   });
   const thresholdsQuery = useQuery({ queryKey: ['thresholds'], queryFn: () => api.listThresholds(), enabled: tierConfig.analytics });
+  const alertsQuery = useQuery({ queryKey: ['trend-alerts', tankId], queryFn: () => api.listAlerts(tankId), enabled: Boolean(tankId) && tierConfig.analytics });
   const rows = query.data ?? [];
+  const alerts = (alertsQuery.data ?? []).filter((alert) => {
+    const timestamp = Date.parse(alert.createdAt);
+    return timestamp >= Date.parse(dates.from) && timestamp <= Date.parse(dates.to);
+  });
   const ranges = useMemo(() => nightRanges(rows), [rows]);
   const chartParameters = parameters.map((parameter) => ({
     ...parameter,
@@ -59,6 +64,13 @@ export default function TrendsPage() {
     if (threshold?.max !== undefined) return `${title} ≤${threshold.max} ${unit}`;
     return `${title} ${min}–${max} ${unit}`;
   }).join(' · ');
+  const summaries = chartParameters.map((parameter) => calculateParameterStatistics(parameter.key, rows, thresholdsQuery.data ?? []));
+  const alertsByDay = alerts.reduce<Record<string, { warning: number; critical: number }>>((counts, alert) => {
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(alert.createdAt));
+    counts[day] ??= { warning: 0, critical: 0 };
+    counts[day][alert.severity] += 1;
+    return counts;
+  }, {});
 
   return (
     <div className="stack">
@@ -72,7 +84,14 @@ export default function TrendsPage() {
       <StaleQueryState updatedAt={query.dataUpdatedAt} />
       <p className="small muted">Retention available: {tierConfig.retentionDays} days. Safe bands: {safeBandText}. Overnight shading: 22:00–06:00 PHT.</p>
       {!tierConfig.analytics ? <section className="card"><h2 className="card-title">Analytics requires an upgrade</h2><p className="muted">Trend charts are available on premium and enterprise tiers.</p></section> :
-      query.isLoading || thresholdsQuery.isLoading ? <LoadingState /> : query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : thresholdsQuery.isError ? <ErrorState error={thresholdsQuery.error} onRetry={() => void thresholdsQuery.refetch()} /> : rows.length === 0 ? <EmptyState>No readings are available for this range.</EmptyState> : (
+      query.isLoading || thresholdsQuery.isLoading || alertsQuery.isLoading ? <LoadingState /> : query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : thresholdsQuery.isError ? <ErrorState error={thresholdsQuery.error} onRetry={() => void thresholdsQuery.refetch()} /> : alertsQuery.isError ? <ErrorState error={alertsQuery.error} onRetry={() => void alertsQuery.refetch()} /> : rows.length === 0 ? <EmptyState>No readings are available for this range.</EmptyState> : (
+        <>
+        <section className="card">
+          <h2 className="card-title">Range statistics</h2>
+          <div className="table-wrap"><table><thead><tr><th>Parameter</th><th>Min</th><th>Max</th><th>Mean</th><th>Std dev</th><th>Readings in range</th><th>Excursions</th><th>Longest (h)</th></tr></thead><tbody>
+            {summaries.map((summary) => <tr key={summary.parameter}><td>{summary.parameter}</td><td>{summary.min?.toFixed(2) ?? '—'}</td><td>{summary.max?.toFixed(2) ?? '—'}</td><td>{summary.mean?.toFixed(2) ?? '—'}</td><td>{summary.standardDeviation?.toFixed(2) ?? '—'}</td><td>{summary.percentInRange?.toFixed(1) ?? '—'}%</td><td>{summary.excursions}</td><td>{summary.longestExcursionHours.toFixed(1)}</td></tr>)}
+          </tbody></table></div>
+        </section>
         <section className="grid grid-3">
           {chartParameters.map((parameter) => {
             const min = parameter.threshold?.min ?? parameter.min;
@@ -91,12 +110,22 @@ export default function TrendsPage() {
                     <YAxis domain={['auto', 'auto']} width={48} />
                     <Tooltip labelFormatter={(value) => `${formatManilaDateTime(new Date(Number(value)))} PHT`} formatter={(value) => [`${Number(value).toFixed(2)} ${parameter.unit}`, parameter.title]} />
                     <Line dataKey={parameter.key === 'do' ? 'doMgL' : parameter.key} name={parameter.title} stroke={parameter.color} strokeWidth={2} dot={false} isAnimationActive={false} />
+                    {alerts.filter((alert) => alert.parameter.toLowerCase() === parameter.key || (parameter.key === 'do' && ['do', 'dissolved oxygen', 'dissolved_oxygen'].includes(alert.parameter.toLowerCase()))).map((alert) => (
+                      <ReferenceDot key={alert.id} x={Date.parse(alert.createdAt)} y={alert.value} r={5} fill={alert.severity === 'critical' ? 'var(--critical)' : 'var(--warning)'} stroke="var(--surface)" />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </article>
           );})}
         </section>
+        <section className="card">
+          <h2 className="card-title">Alert frequency by day</h2>
+          {!Object.keys(alertsByDay).length ? <EmptyState>No alerts occurred in this range.</EmptyState> : <div className="table-wrap"><table><thead><tr><th>Date (PHT)</th><th>Warning</th><th>Critical</th></tr></thead><tbody>
+            {Object.entries(alertsByDay).sort(([left], [right]) => left.localeCompare(right)).map(([day, counts]) => <tr key={day}><td>{day}</td><td>{counts.warning}</td><td>{counts.critical}</td></tr>)}
+          </tbody></table></div>}
+        </section>
+        </>
       )}
     </div>
   );

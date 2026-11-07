@@ -26,7 +26,7 @@ export default function ProfileDetailsCard() {
         </span>
         <div>
           <p className="profile-name">{fullName}</p>
-          <p className="settings-muted">{user?.position ?? (user?.role === 'ADMINISTRATOR' ? 'Administrator' : 'Operator')}</p>
+          <p className="settings-muted">{user?.position ?? (user?.role === 'admin' ? 'Administrator' : 'Operator')}</p>
         </div>
       </div>
 
@@ -35,8 +35,8 @@ export default function ProfileDetailsCard() {
         <p className="settings-info-row"><b>Email</b><span>{user?.email ?? 'Not provided'}</span></p>
         <p className="settings-info-row"><b>Employee ID</b><span>{user?.employeeId ?? 'Not provided'}</span></p>
         <p className="settings-info-row"><b>Phone</b><span>{user?.phone ?? 'Not provided'}</span></p>
-        <p className="settings-info-row"><b>Position</b><span>{user?.position ?? (user?.role === 'ADMINISTRATOR' ? 'Administrator' : 'Not provided')}</span></p>
-        {user?.role === 'OPERATOR' && (
+        <p className="settings-info-row"><b>Position</b><span>{user?.position ?? (user?.role === 'admin' ? 'Administrator' : 'Not provided')}</span></p>
+        {user?.role === 'operator' && (
           <>
             <p className="settings-info-row"><b>Hatchery</b><span>{hatchery?.name ?? 'Not provided'}</span></p>
             <p className="settings-info-row"><b>Address</b><span>{user.address || 'Not provided'}</span></p>

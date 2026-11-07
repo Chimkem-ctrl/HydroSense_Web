@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "HydroSense",
+    "slug": "hydrosense-mobile",
+    "scheme": "hydrosense",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-notifications"
+    ],
+    "android": {
+      "package": "com.hydrosense.mobile",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    }
+  }
+}

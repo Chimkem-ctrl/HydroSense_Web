@@ -1,4 +1,5 @@
-import type { AdvisoryRuleSettings, AlertItem, CalibrationLog, DashboardUser, ManualEntry, Tank, Threshold, ValidationTolerance } from '../types';
+import type { ActivityLog, AdvisoryRuleSettings, AlertItem, CalibrationLog, DashboardUser, ManualEntry, Tank, Threshold, ValidationTolerance } from '../types';
+import { mapManualEntryToActivityLog } from '../activity';
 import { DEFAULT_ADVISORY_RULES, getAmmoniaAdvisory, getSalinityAdvisory } from '../rules/advisory';
 import { DEFAULT_VALIDATION_TOLERANCES } from '../validation';
 import {
@@ -27,6 +28,7 @@ export class MockApiClient implements HydroSenseApi {
   private alerts = clone(mockAlerts);
   private responses = clone(mockAlertResponses);
   private entries = clone(mockManualEntries);
+  private activityLogs = clone(mockManualEntries.map(mapManualEntryToActivityLog));
   private calibrations = clone(mockCalibrationLogs);
   private thresholds = clone(mockThresholds);
   private advisorySettings = clone(DEFAULT_ADVISORY_RULES);
@@ -81,6 +83,7 @@ export class MockApiClient implements HydroSenseApi {
     const alertIds = new Set(this.alerts.map((alert) => alert.id));
     this.responses = this.responses.filter((response) => alertIds.has(response.alertId));
     this.entries = this.entries.filter((entry) => entry.tankId !== tankId);
+    this.activityLogs = this.activityLogs.filter((log) => log.tankId !== tankId);
     this.calibrations = this.calibrations.filter((log) => log.tankId !== tankId);
     delete this.advisories[tankId];
     this.recordAudit(changedBy, 'Tank removed', `${tank.name} · hardware ${tank.deviceId}`);
@@ -151,6 +154,84 @@ export class MockApiClient implements HydroSenseApi {
     this.recordAudit(created.enteredBy, 'Manual entry created', `${created.type} · ${created.tankId}`);
     return clone(created);
   }
+  async listActivityLogs(tankId?: string) {
+    return clone(this.activityLogs
+      .filter((log) => !tankId || log.tankId === tankId || log.tankId === 'hatchery')
+      .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt)));
+  }
+  async createActivityLog(entry: Omit<ActivityLog, 'id' | 'occurredAt'>) {
+    const created: ActivityLog = {
+      ...entry,
+      id: `activity-${crypto.randomUUID()}`,
+      occurredAt: new Date().toISOString(),
+    };
+    this.activityLogs.unshift(created);
+    const advisoryEntries: ManualEntry[] = [];
+    const manual = created.manualReadings;
+    if (manual?.salinity !== undefined) {
+      advisoryEntries.push({
+        id: `activity-${created.id}-salinity`,
+        tankId: created.tankId,
+        type: 'refractometer_salinity',
+        value: manual.salinity,
+        unit: 'ppt',
+        timestamp: created.occurredAt,
+        enteredBy: created.operator,
+        note: created.notes,
+      });
+    }
+    if (manual?.ammonia !== undefined) {
+      advisoryEntries.push({
+        id: `activity-${created.id}-ammonia`,
+        tankId: created.tankId,
+        type: 'ammonia_test_kit',
+        value: manual.ammonia,
+        unit: 'mg/L',
+        timestamp: created.occurredAt,
+        enteredBy: created.operator,
+        note: created.notes,
+      });
+    }
+    if (created.kind === 'ENVIRONMENT' && created.type === 'Rainfall') {
+      advisoryEntries.push({
+        id: `activity-${created.id}-rain`,
+        tankId: created.tankId,
+        type: 'rain_event',
+        timestamp: created.occurredAt,
+        enteredBy: created.operator,
+        note: created.notes,
+      });
+    }
+    if (created.kind === 'OPERATION' && created.type === 'Freshwater dosing (log only)') {
+      advisoryEntries.push({
+        id: `activity-${created.id}-freshwater`,
+        tankId: created.tankId,
+        type: 'freshwater_dosing',
+        timestamp: created.occurredAt,
+        enteredBy: created.operator,
+        note: created.notes,
+      });
+    }
+    for (const entry of advisoryEntries) {
+      if (entry.tankId === 'hatchery') {
+        this.entries.unshift(...this.tanks.map((tank) => ({
+          ...entry,
+          id: `${entry.id}-${tank.id}`,
+          tankId: tank.id,
+        })));
+      } else {
+        this.entries.unshift(entry);
+      }
+    }
+    if (created.tankId !== 'hatchery') this.refreshAdvisories(created.tankId, created.occurredAt);
+    for (const tank of this.tanks) {
+      if (created.tankId === 'hatchery' && advisoryEntries.length > 0) {
+        this.refreshAdvisories(tank.id, created.occurredAt);
+      }
+    }
+    this.recordAudit(created.operator, 'Activity log created', `${created.kind} · ${created.type} · ${created.tankId}`);
+    return clone(created);
+  }
   async listThresholds() { return clone(this.thresholds); }
   async updateThresholds(thresholds: Threshold[], changedBy: string) {
     this.thresholds = clone(thresholds);
@@ -180,7 +261,10 @@ export class MockApiClient implements HydroSenseApi {
     return clone(this.tolerances);
   }
   async listUsers() { return clone(this.users); }
-  async updateUserRole(userId: string, role: DashboardUser['role'], changedBy: string) {
+  async updateUserRole(userId: string, role: Exclude<DashboardUser['role'], 'admin'>, changedBy: string) {
+    if (role !== 'operator' && role !== 'manager') {
+      throw new Error('Users may only be assigned the Operator or Manager role.');
+    }
     const index = this.users.findIndex((user) => user.id === userId);
     if (index < 0) throw new Error(`User ${userId} was not found.`);
     this.users[index] = { ...this.users[index], role };

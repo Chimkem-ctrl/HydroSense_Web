@@ -1,29 +1,29 @@
-import { useQuery } from '@tanstack/react-query';
 import { formatManilaDateTime } from '@hydrosense/shared';
-import { useRole } from '../app/auth/RoleContext';
-import { api } from '../app/api';
+import { useAuth, useRole } from '../app/auth/RoleContext';
+import { SUBSCRIBED_HATCHERIES } from '../services/authService';
 import { PageHeading } from '../components/common/PageHeading';
-import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
+import { EmptyState } from '../components/common/States';
 
 export default function ProfilePage() {
   const { role, userName } = useRole();
-  const users = useQuery({ queryKey: ['admin-users'], queryFn: () => api.listUsers() });
-  const user = users.data?.find((item) => item.name === userName && item.role === role);
+  const user = useAuth();
+  const hatcheryName = user?.hatcheryId
+    ? SUBSCRIBED_HATCHERIES.find((hatchery) => hatchery.id === user.hatcheryId)?.name ?? user.hatcheryId
+    : 'HydroSense';
   return (
     <div className="stack">
       <PageHeading title="My profile" description="Your account, role, hatchery assignment and emergency contact information." />
-      <StaleQueryState updatedAt={users.dataUpdatedAt} />
-      {users.isLoading ? <LoadingState /> : users.isError ? <ErrorState error={users.error} onRetry={() => void users.refetch()} /> : !user ? <EmptyState>Profile details are not available for this account.</EmptyState> : (
+      {!user ? <EmptyState>Profile details are not available for this account.</EmptyState> : (
         <section className="card stack">
-          <div className="inline"><span className="avatar" aria-hidden="true">{user.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><h2 className="card-title">{user.name}</h2><p className="small muted">{user.position ?? 'Team member'} · {user.role}</p></div></div>
+          <div className="inline"><span className="avatar" aria-hidden="true">{userName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><h2 className="card-title">{userName}</h2><p className="small muted">{user.position ?? 'Team member'} · {role}</p></div></div>
           <h3>Profile details</h3>
           <dl className="profile-details">
             <div><dt>Email</dt><dd>{user.email}</dd></div><div><dt>Employee ID</dt><dd>{user.employeeId ?? 'Not provided'}</dd></div>
-            <div><dt>Phone</dt><dd>{user.phone ?? 'Not provided'}</dd></div><div><dt>Role</dt><dd>{user.role}</dd></div>
-            <div><dt>Position</dt><dd>{user.position ?? 'Not provided'}</dd></div><div><dt>Hatchery / site</dt><dd>{user.site}</dd></div>
-            <div><dt>Address</dt><dd>{user.address ?? 'Not provided'}</dd></div><div><dt>Account status</dt><dd>{user.active ? 'Active' : 'Inactive'}</dd></div>
+            <div><dt>Phone</dt><dd>{user.phone ?? 'Not provided'}</dd></div><div><dt>Role</dt><dd>{role}</dd></div>
+            <div><dt>Position</dt><dd>{user.position ?? 'Not provided'}</dd></div><div><dt>Hatchery / site</dt><dd>{hatcheryName}</dd></div>
+            <div><dt>Address</dt><dd>{user.address ?? 'Not provided'}</dd></div><div><dt>Account status</dt><dd>{user.status}</dd></div>
             <div><dt>Emergency contact</dt><dd>{user.emergencyContactName ?? 'Not provided'}</dd></div><div><dt>Emergency contact phone</dt><dd>{user.emergencyContactPhone ?? 'Not provided'}</dd></div>
-            <div><dt>Last active</dt><dd>{formatManilaDateTime(user.lastActive)} PHT</dd></div>
+            <div><dt>Account created</dt><dd>{formatManilaDateTime(user.createdAt)} PHT</dd></div>
           </dl>
           <p className="small muted">Profile details are read-only demo data; edits require the future authentication backend.</p>
         </section>

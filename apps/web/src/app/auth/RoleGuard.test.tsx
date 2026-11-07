@@ -4,27 +4,39 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RoleProvider } from './RoleContext';
 import { RoleGuard } from './RoleGuard';
 
-describe('RoleGuard', () => {
-  let storage: Storage;
+const ACCOUNT_KEY = 'hydrosense.auth.accounts.v2';
+const SESSION_KEY = 'hydrosense.auth.session.v2';
 
+function signInAs(role: 'operator' | 'admin') {
+  const user = {
+    id: role === 'admin' ? 'demo-admin' : `test-${role}`,
+    firstName: 'Test',
+    lastName: role,
+    email: `${role}@example.com`,
+    role,
+    requestedRole: role === 'admin' ? null : 'operator',
+    status: 'approved',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+  if (role !== 'admin') {
+    window.localStorage.setItem(ACCOUNT_KEY, JSON.stringify([{
+      user,
+      passwordSalt: 'salt',
+      passwordHash: 'hash',
+    }]));
+  }
+  window.localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }));
+}
+
+describe('RoleGuard', () => {
   afterEach(cleanup);
 
   beforeEach(() => {
-    const values = new Map<string, string>();
-    storage = {
-      get length() { return values.size; },
-      clear: () => values.clear(),
-      getItem: (key) => values.get(key) ?? null,
-      key: (index) => Array.from(values.keys())[index] ?? null,
-      removeItem: (key) => values.delete(key),
-      setItem: (key, value) => values.set(key, String(value)),
-    };
-    Object.defineProperty(window, 'localStorage', { configurable: true, value: storage });
-    storage.clear();
+    window.localStorage.clear();
   });
 
-  it('shows protected content to an authorized role', () => {
-    storage.setItem('hydrosense.dashboard.role.v1', 'admin');
+  it('shows protected content to an authorized role from the stored account', () => {
+    signInAs('admin');
     render(
       <MemoryRouter initialEntries={['/admin']}>
         <RoleProvider><Routes>
@@ -37,7 +49,7 @@ describe('RoleGuard', () => {
   });
 
   it('redirects an operator away from admin-only content', async () => {
-    storage.setItem('hydrosense.dashboard.role.v1', 'operator');
+    signInAs('operator');
     render(
       <MemoryRouter initialEntries={['/admin']}>
         <RoleProvider><Routes>

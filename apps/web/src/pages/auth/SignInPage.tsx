@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AuthFooter from '../../components/auth/AuthFooter';
 import AuthHeader from '../../components/auth/AuthHeader';
 import AuthLayout from '../../components/auth/AuthLayout';
@@ -10,6 +10,7 @@ import PrimaryButton from '../../components/common/PrimaryButton';
 import { useAuthForm } from '../../hooks/useAuthForm';
 import { authService, DEMO_ADMIN_CREDENTIALS } from '../../services/authService';
 import type { SignInValues } from '../../types/auth.types';
+import { getSafeInAppPath } from '../../app/auth/RouteGuards';
 
 const initialValues: SignInValues = { email: '', password: '' };
 
@@ -25,12 +26,14 @@ function validate(values: SignInValues) {
 
 export default function SignInPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = getSafeInAppPath(location.state?.from);
   const form = useAuthForm({
     initialValues,
     validate,
     onSubmit: async (values) => {
       const result = await authService.signIn(values.email, values.password);
-      navigate(result.redirectPath, { replace: true });
+      navigate(result.status === 'approved' ? (from ?? result.redirectPath) : result.redirectPath, { replace: true });
     },
   });
 
@@ -82,12 +85,12 @@ export default function SignInPage() {
           <AuthFooter>
             Don&apos;t have an account? <Link to="/signup">Sign Up</Link>
           </AuthFooter>
-          <div className="demo-login-box">
+          {import.meta.env.DEV && <div className="demo-login-box">
             <strong>Administrator demo access</strong>
             <span>Email: {DEMO_ADMIN_CREDENTIALS.email}</span>
             <span>Password: {DEMO_ADMIN_CREDENTIALS.password}</span>
-            <small>Operator accounts are created from Sign Up. Sign-in routes each account to its own dashboard.</small>
-          </div>
+            <small>Demo only: credentials are checked in this browser.</small>
+          </div>}
           <p className="auth-demo-disclaimer">Demo only: credentials are checked in this browser. Do not use a real password.</p>
         </GlassPanel>
       </div>

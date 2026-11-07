@@ -1,3 +1,8 @@
+import type { Role } from '@hydrosense/shared';
+
+export type RequestedRole = Exclude<Role, 'admin'>;
+export type AccountStatus = 'pending' | 'approved' | 'rejected';
+
 export interface SignInValues {
   email: string;
   password: string;
@@ -8,6 +13,7 @@ export interface SignUpValues extends SignInValues {
   lastName: string;
   employeeId: string;
   phone: string;
+  requestedRole: RequestedRole;
   position: string;
   hatcheryId: string;
   address: string;
@@ -17,14 +23,14 @@ export interface SignUpValues extends SignInValues {
   termsAccepted: boolean;
 }
 
-export type AccountRole = 'ADMINISTRATOR' | 'OPERATOR';
-
 export interface AuthUser {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: AccountRole;
+  role: Role | null;
+  requestedRole: RequestedRole | null;
+  status: AccountStatus;
   employeeId?: string;
   phone?: string;
   position?: string;
@@ -32,6 +38,7 @@ export interface AuthUser {
   address?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  createdAt: string;
 }
 
 export interface StoredAccount {
@@ -39,6 +46,12 @@ export interface StoredAccount {
   passwordSalt: string;
   passwordHash: string;
 }
+
+export type PendingRequest = AuthUser & {
+  role: null;
+  requestedRole: RequestedRole;
+  status: 'pending';
+};
 
 export interface ForgotPasswordValues {
   email: string;
