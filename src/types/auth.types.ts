@@ -14,4 +14,11 @@ export interface ForgotPasswordValues {
   email: string;
 }
 
+export type UserRole = 'admin' | 'operator';
+
+export interface AuthSession {
+  email: string;
+  role: UserRole;
+}
+
 export type FormErrors<T> = Partial<Record<keyof T, string>>;
