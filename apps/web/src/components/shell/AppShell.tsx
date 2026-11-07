@@ -107,7 +107,7 @@ export function AppShell() {
       <aside className={`sidebar${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
         <Link to="/" className="brand" aria-label="HydroSense home">
           <img src={ASSETS.logo} alt="" className="brand-logo" />
-          <span>HydroSense<small>MILKFISH LARVAL MONITOR</small></span>
+          <span>HydroSense<small> WATER QUALITY MONITORING</small></span>
         </Link>
         <button type="button" className="icon-button sidebar-close mobile-menu" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X size={18} /></button>
         <nav className="side-nav">
