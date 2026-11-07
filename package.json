@@ -1,24 +1,20 @@
 {
-  "name": "hydrosense",
+  "name": "hydrosense-dashboard",
   "private": true,
-  "version": "0.1.0",
   "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/mobile",
+    "backend",
+    "packages/shared"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.1"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "~5.6.2",
-    "vite": "^5.4.11"
+    "dev": "npm run dev --workspace @hydrosense/web",
+    "dev:mobile": "npm run start --workspace @hydrosense/mobile",
+    "android:mobile": "npm run android --workspace @hydrosense/mobile",
+    "build": "npm run build --workspace @hydrosense/shared && npm run build --workspace @hydrosense/web && npm run typecheck --workspace @hydrosense/mobile",
+    "typecheck": "npm run build --workspace @hydrosense/shared && npm run typecheck --workspace @hydrosense/web && npm run typecheck --workspace @hydrosense/mobile",
+    "test": "npm run test --workspace @hydrosense/shared && npm run test --workspace @hydrosense/web",
+    "test:watch": "npm run test:watch --workspace @hydrosense/web"
   }
 }

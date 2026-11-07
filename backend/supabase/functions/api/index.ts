@@ -1,0 +1,413 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+Deno.serve(async (request) => {
+  try {
+    if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const url = new URL(request.url);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  let publicPath = url.pathname;
+  publicPath = publicPath.replace(/^\/functions\/v1\/api/, "");
+  publicPath = publicPath.replace(/^\/api/, "");
+  const [action] = publicPath.split("?");
+
+  if (action === "/v1/auth/signup" && request.method === "POST") {
+    const body = await request.json();
+    if (!["operator", "manager"].includes(body.requestedRole)) {
+      return json({ error: "Requested role must be operator or manager." }, 400);
+    }
+    const { data, error } = await admin.auth.admin.createUser({
+      email: body.email,
+      password: body.password,
+      email_confirm: true,
+      user_metadata: {
+        firstName: body.firstName,
+        lastName: body.lastName,
+        requestedRole: body.requestedRole,
+        position: body.position,
+        employeeId: body.employeeId,
+        phone: body.phone,
+        address: body.address,
+        emergencyContactName: body.emergencyContactName,
+        emergencyContactPhone: body.emergencyContactPhone,
+        hatcheryId: body.hatcheryId,
+      },
+    });
+    if (error) return json({ error: error.message }, 400);
+    return json({ status: "pending", user: { id: data.user.id, email: data.user.email } }, 201);
+  }
+
+  if (action === "/v1/auth/signin" && request.method === "POST") {
+    const body = await request.json();
+    const authClient = createClient(supabaseUrl, anonKey);
+    const { data, error } = await authClient.auth.signInWithPassword({
+      email: body.email,
+      password: body.password,
+    });
+    if (error || !data.user || !data.session) return json({ error: "Invalid credentials." }, 401);
+    const { data: profile } = await admin.from("profiles").select("*").eq("id", data.user.id).single();
+    if (!profile || profile.status !== "approved") {
+      return json({ status: profile?.status ?? "pending" }, profile?.status === "rejected" ? 403 : 200);
+    }
+    await admin.from("profiles").update({ last_active: new Date().toISOString() }).eq("id", data.user.id);
+    return json({
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      user: {
+        id: profile.id,
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+        email: profile.email,
+        role: profile.role,
+        requestedRole: profile.requested_role,
+        status: profile.status,
+        position: profile.position,
+      },
+    });
+  }
+
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return json({ error: "Authentication required." }, 401);
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: userData, error: userError } = await authClient.auth.getUser(token);
+  if (userError || !userData.user) return json({ error: "Invalid or expired session." }, 401);
+
+  const { data: profile } = await admin.from("profiles").select("*").eq("id", userData.user.id).single();
+
+  if (action === "/v1/tanks" && request.method === "GET") {
+    const { data, error } = await admin.from("tanks").select("*").order("name");
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((tank) => ({
+      id: tank.id,
+      name: tank.name,
+      site: tank.site,
+      rearingStartDate: tank.rearing_start_date,
+      deviceId: tank.device_id,
+    })));
+  }
+
+  if (action === "/v1/tanks" && request.method === "POST") {
+    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    const tank = await request.json();
+    const { data, error } = await admin.from("tanks").insert({
+      name: tank.name,
+      site: tank.site,
+      rearing_start_date: tank.rearingStartDate,
+      device_id: tank.deviceId,
+    }).select().single();
+    if (error) return json({ error: error.message }, 400);
+    await admin.from("audit_logs").insert({ user_name: tank.changedBy, action: "Tank registered", detail: `${data.name} · hardware ${data.device_id}` });
+    return json({ id: data.id, name: data.name, site: data.site, rearingStartDate: data.rearing_start_date, deviceId: data.device_id }, 201);
+  }
+
+  if (action === "/v1/readings" && request.method === "GET") {
+    let query = admin.from("readings").select("*");
+    if (url.searchParams.get("tankId")) query = query.eq("tank_id", url.searchParams.get("tankId"));
+    if (url.searchParams.get("from")) query = query.gte("timestamp", url.searchParams.get("from"));
+    if (url.searchParams.get("to")) query = query.lte("timestamp", url.searchParams.get("to"));
+    query = query.order("timestamp", { ascending: false }).limit(Number(url.searchParams.get("limit") ?? 500));
+    const { data, error } = await query;
+    if (error) return json({ error: error.message }, 500);
+    return json((data ?? []).reverse().map((reading) => ({
+      id: reading.id,
+      tankId: reading.tank_id,
+      timestamp: reading.timestamp,
+      temperature: reading.temperature,
+      doMgL: reading.do_mg_l,
+      ph: reading.ph,
+    })).filter((reading) => !url.searchParams.get("parameter") || url.searchParams.get("parameter") === "all" || ["temperature", "do", "ph"].includes(url.searchParams.get("parameter")!)));
+  }
+
+  if (action === "/v1/devices/status" && request.method === "GET") {
+    const { data, error } = await admin.from("device_statuses").select("*");
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((status) => ({
+      deviceId: status.device_id,
+      online: status.online,
+      lastSeen: status.last_seen,
+      batteryPct: status.battery_pct,
+      powerSource: status.power_source,
+      wifiRssi: status.wifi_rssi,
+      pendingSyncCount: status.pending_sync_count,
+    })));
+  }
+
+  if (action.startsWith("/v1/tanks/") && action.endsWith("/readings/latest") && request.method === "GET") {
+    const tankId = decodeURIComponent(action.split("/")[3]);
+    const { data, error } = await admin.from("readings").select("*").eq("tank_id", tankId).order("timestamp", { ascending: false }).limit(1).maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    return json(data ? {
+      id: data.id,
+      tankId: data.tank_id,
+      timestamp: data.timestamp,
+      temperature: data.temperature,
+      doMgL: data.do_mg_l,
+      ph: data.ph,
+    } : null);
+  }
+
+  const advisoryMatch = action.match(/^\/v1\/tanks\/([^/]+)\/advisories$/);
+  if (advisoryMatch && request.method === "GET") {
+    const { data: settings } = await admin.from("advisory_settings").select("*").eq("id", true).single();
+    const { data: latest } = await admin.from("readings")
+      .select("*")
+      .eq("tank_id", decodeURIComponent(advisoryMatch[1]))
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const updatedAt = latest?.timestamp ?? new Date().toISOString();
+    const temperature = latest?.temperature ?? null;
+    const ph = latest?.ph ?? null;
+    const salinityLevel = temperature !== null && temperature >= (settings?.salinity_high_temperature_c ?? 33)
+      ? "high"
+      : temperature !== null && temperature >= (settings?.salinity_watch_temperature_c ?? 31)
+        ? "watch"
+        : "normal";
+    const ammoniaLevel = ph !== null && ph >= (settings?.ammonia_high_ph ?? 8)
+      ? "high"
+      : ph !== null && ph >= (settings?.ammonia_watch_ph ?? 7.8)
+        ? "watch"
+        : "normal";
+    return json([
+      {
+        kind: "salinity",
+        level: salinityLevel,
+        inputs: { temperature: temperature ?? "unavailable", thresholdC: settings?.salinity_watch_temperature_c ?? 31 },
+        firedRule: temperature === null ? "No recent reading" : `${salinityLevel} temperature rule`,
+        updatedAt,
+      },
+      {
+        kind: "ammonia",
+        level: ammoniaLevel,
+        inputs: { ph: ph ?? "unavailable", thresholdPh: settings?.ammonia_watch_ph ?? 7.8 },
+        firedRule: ph === null ? "No recent reading" : `${ammoniaLevel} pH rule`,
+        updatedAt,
+      },
+    ]);
+  }
+
+  const tankDelete = action.match(/^\/v1\/tanks\/([^/]+)$/);
+  if (tankDelete && request.method === "DELETE") {
+    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    const { error } = await admin.from("tanks").delete().eq("id", decodeURIComponent(tankDelete[1]));
+    if (error) return json({ error: error.message }, 400);
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (action === "/v1/alerts" && request.method === "GET") {
+    let query = admin.from("alerts").select("*");
+    if (url.searchParams.get("tank_id")) query = query.eq("tank_id", url.searchParams.get("tank_id"));
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((alert) => ({
+      id: alert.id, tankId: alert.tank_id, parameter: alert.parameter, value: alert.value,
+      threshold: alert.threshold, severity: alert.severity, status: alert.status,
+      createdAt: alert.created_at, acknowledgedBy: alert.acknowledged_by,
+      acknowledgedAt: alert.acknowledged_at, note: alert.note,
+    })));
+  }
+
+  const alertResponse = action.match(/^\/v1\/alerts\/([^/]+)\/responses$/);
+  if (alertResponse && request.method === "GET") {
+    const { data, error } = await admin.from("alert_responses").select("*").eq("alert_id", decodeURIComponent(alertResponse[1])).order("created_at");
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((response) => ({
+      id: response.id, alertId: response.alert_id, status: response.status,
+      note: response.note, createdAt: response.created_at, createdBy: response.created_by,
+    })));
+  }
+
+  const alertAction = action.match(/^\/v1\/alerts\/([^/]+)\/(acknowledge|resolve)$/);
+  if (alertAction && request.method === "POST") {
+    const input = await request.json();
+    const status = alertAction[2] === "resolve" ? "resolved" : "acknowledged";
+    const alertId = decodeURIComponent(alertAction[1]);
+    const updates: Record<string, unknown> = { status, note: input.note };
+    if (status === "acknowledged") {
+      updates.acknowledged_by = input.user;
+      updates.acknowledged_at = new Date().toISOString();
+    }
+    const { data, error } = await admin.from("alerts").update(updates).eq("id", alertId).select().single();
+    if (error) return json({ error: error.message }, 400);
+    await admin.from("alert_responses").insert({
+      alert_id: alertId, status, note: input.note, created_by: input.user,
+    });
+    return json({
+      id: data.id, tankId: data.tank_id, parameter: data.parameter, value: data.value,
+      threshold: data.threshold, severity: data.severity, status: data.status,
+      createdAt: data.created_at, acknowledgedBy: data.acknowledged_by,
+      acknowledgedAt: data.acknowledged_at, note: data.note,
+    });
+  }
+
+  if (action === "/v1/settings/thresholds" && ["GET", "PUT"].includes(request.method)) {
+    if (request.method === "GET") {
+      const { data, error } = await admin.from("thresholds").select("*");
+      if (error) return json({ error: error.message }, 500);
+      return json(data?.map((threshold) => ({
+        parameter: threshold.parameter,
+        ...(threshold.min_value !== null ? { min: threshold.min_value } : {}),
+        ...(threshold.max_value !== null ? { max: threshold.max_value } : {}),
+      })));
+    }
+    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    const body = await request.json();
+    await Promise.all(body.thresholds.map((threshold: { parameter: string; min?: number; max?: number }) =>
+      admin.from("thresholds").upsert({
+        parameter: threshold.parameter, min_value: threshold.min ?? null, max_value: threshold.max ?? null,
+        updated_at: new Date().toISOString(),
+      })));
+    await admin.from("audit_logs").insert({ user_name: body.changedBy, action: "Thresholds updated", detail: "Water-quality thresholds" });
+    return json(body.thresholds);
+  }
+
+  if (action === "/v1/settings/advisory-rules" && ["GET", "PUT"].includes(request.method)) {
+    if (request.method === "GET") {
+      const { data, error } = await admin.from("advisory_settings").select("*").eq("id", true).single();
+      if (error) return json({ error: error.message }, 500);
+      return json({
+        salinityWatchTemperatureC: data.salinity_watch_temperature_c,
+        salinityHighTemperatureC: data.salinity_high_temperature_c,
+        ammoniaWatchTemperatureC: data.ammonia_watch_temperature_c,
+        ammoniaHighPh: data.ammonia_high_ph,
+      });
+    }
+    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    const body = await request.json();
+    await admin.from("advisory_settings").update({
+      salinity_watch_temperature_c: body.settings.salinityWatchTemperatureC,
+      salinity_high_temperature_c: body.settings.salinityHighTemperatureC,
+      ammonia_watch_temperature_c: body.settings.ammoniaWatchTemperatureC,
+      ammonia_high_ph: body.settings.ammoniaHighPh,
+    }).eq("id", true);
+    await admin.from("audit_logs").insert({ user_name: body.changedBy, action: "Advisory rules updated", detail: "Salinity and ammonia rules" });
+    return json(body.settings);
+  }
+
+  if (action === "/v1/calibrations" && ["GET", "POST"].includes(request.method)) {
+    if (request.method === "GET") {
+      let query = admin.from("calibration_logs").select("*");
+      if (url.searchParams.get("tank_id")) query = query.eq("tank_id", url.searchParams.get("tank_id"));
+      const { data, error } = await query.order("date", { ascending: false });
+      if (error) return json({ error: error.message }, 500);
+      return json(data?.map((row) => ({
+        id: row.id, tankId: row.tank_id, parameter: row.parameter, standard: row.standard,
+        before: row.before_value, after: row.after_value, date: row.date,
+        user: row.user_name, nextDue: row.next_due,
+      })));
+    }
+    const body = await request.json();
+    const { data, error } = await admin.from("calibration_logs").insert({
+      tank_id: body.tankId, parameter: body.parameter, standard: body.standard,
+      before_value: body.before, after_value: body.after, date: body.date,
+      user_name: body.user, next_due: body.nextDue,
+    }).select().single();
+    if (error) return json({ error: error.message }, 400);
+    return json({ id: data.id, tankId: data.tank_id, parameter: data.parameter, standard: data.standard, before: data.before_value, after: data.after_value, date: data.date, user: data.user_name, nextDue: data.next_due }, 201);
+  }
+
+  if (action === "/v1/validation/tolerances" && ["GET", "PUT"].includes(request.method)) {
+    if (request.method === "GET") {
+      const { data, error } = await admin.from("validation_tolerances").select("*").eq("id", true).single();
+      if (error) return json({ error: error.message }, 500);
+      return json({ temperature: data.temperature, ph: data.ph, do: data.dissolved_oxygen });
+    }
+    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    const body = await request.json();
+    await admin.from("validation_tolerances").update({
+      temperature: body.tolerances.temperature,
+      ph: body.tolerances.ph,
+      dissolved_oxygen: body.tolerances.do,
+    }).eq("id", true);
+    return json(body.tolerances);
+  }
+
+  if (action === "/v1/admin/users" && request.method === "GET") {
+    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    const status = url.searchParams.get("status");
+    let query = admin.from("profiles").select("*").order("created_at", { ascending: false });
+    if (status) query = query.eq("status", status);
+    const { data, error } = await query;
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((user) => ({
+      id: user.id, firstName: user.first_name, lastName: user.last_name, name: `${user.first_name} ${user.last_name}`.trim(), email: user.email,
+      role: user.role, requestedRole: user.requested_role, status: user.status, createdAt: user.created_at,
+      site: user.site, active: user.active, lastActive: user.last_active,
+      employeeId: user.employee_id, phone: user.phone, position: user.position, address: user.address,
+      emergencyContactName: user.emergency_contact_name, emergencyContactPhone: user.emergency_contact_phone,
+    })));
+  }
+
+  const adminUserUpdate = action.match(/^\/v1\/admin\/users\/([^/]+)$/);
+  if (adminUserUpdate && request.method === "PATCH") {
+    if (profile.role !== "admin") return json({ error: "Forbidden." }, 403);
+    const body = await request.json();
+    const updates = {
+      status: body.status,
+      role: body.role,
+      requested_role: body.role,
+    };
+    const { data, error } = await admin.from("profiles").update(updates).eq("id", decodeURIComponent(adminUserUpdate[1])).select().single();
+    if (error) return json({ error: error.message }, 400);
+    return json({
+      id: data.id,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      email: data.email,
+      requested_role: data.requested_role,
+      status: data.status,
+      role: data.role,
+      position: data.position,
+      created_at: data.created_at,
+      employee_id: data.employee_id,
+      phone: data.phone,
+      address: data.address,
+      emergency_contact_name: data.emergency_contact_name,
+      emergency_contact_phone: data.emergency_contact_phone,
+    });
+  }
+  if (adminUserUpdate && request.method === "DELETE") {
+    if (profile.role !== "admin") return json({ error: "Forbidden." }, 403);
+    const userId = decodeURIComponent(adminUserUpdate[1]);
+    if (userId === profile.id) return json({ error: "The administrator account cannot be removed." }, 400);
+    const { data: target, error: targetError } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if (targetError) return json({ error: targetError.message }, 500);
+    if (!target) return json({ error: "Account was not found." }, 404);
+    if (target.role === "admin") return json({ error: "Administrator accounts cannot be removed." }, 400);
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) return json({ error: error.message }, 400);
+    await admin.from("profiles").delete().eq("id", userId);
+    return json({ id: userId, removed: true });
+  }
+
+  if (action === "/v1/admin/logs" && request.method === "GET") {
+    if (profile.role !== "admin") return json({ error: "Forbidden." }, 403);
+    const { data, error } = await admin.from("audit_logs").select("*").order("timestamp", { ascending: false });
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((log) => ({ id: log.id, timestamp: log.timestamp, user: log.user_name, action: log.action, detail: log.detail })));
+  }
+
+    return json({ error: `No API route for ${request.method} ${action}.` }, 404);
+  } catch (error) {
+    console.error(error);
+    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+  }
+});
