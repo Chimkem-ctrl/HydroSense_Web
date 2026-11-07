@@ -173,7 +173,7 @@ export function AppShell() {
               <button type="button" className="small muted user-name" aria-haspopup="menu" aria-expanded={accountMenuOpen} aria-label={`Account menu for ${userName}`} onClick={() => setAccountMenuOpen((open) => !open)}><ChevronDown size={14} />{userName}</button>
               {accountMenuOpen && <div className="account-menu-popover" role="menu" aria-label="Account options">
                 <Link to="/profile" role="menuitem"><UserRound size={15} />My profile</Link>
-                <Link to="/settings/notifications" role="menuitem"><Bell size={15} />Alert preferences</Link>
+                <Link to="/profile?tab=alerts" role="menuitem"><Bell size={15} />Alert preferences</Link>
               </div>}
             </div>
           </div>

@@ -48,24 +48,6 @@ export function AdminLogsPage() {
   );
 }
 
-export function NotificationSettingsPage() {
-  const [values, setValues] = useState({ sms: false, email: tierConfig.emailAlerts, voice: false });
-  const channels = [
-    { key: 'sms' as const, label: 'SMS alerts', available: tierConfig.smsAlerts },
-    { key: 'email' as const, label: 'Email alerts', available: tierConfig.emailAlerts },
-    { key: 'voice' as const, label: 'Voice alerts', available: tierConfig.voiceAlerts },
-  ];
-  return (
-    <div className="stack">
-      <PageHeading title="Alert preferences" description="Notification channel availability depends on the configured service tier." />
-      <section className="card stack">
-        {channels.map(({ key, label, available }) => <label key={key} className="check-row"><input type="checkbox" checked={values[key]} disabled={!available} onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.checked }))} /><span>{label}</span>{!available && <small className="muted">Upgrade to premium or enterprise to enable this channel.</small>}</label>)}
-        <p className="small muted">Pilot preference only; delivery integrations require the backend.</p>
-      </section>
-    </div>
-  );
-}
-
 export function ComingSoonPage({ feature }: { feature: string }) {
   const available = feature.toLowerCase().includes('fleet') ? tierConfig.fleetView : tierConfig.batchTracking;
   return <section className="card stack"><PageHeading title={`${feature} · Coming soon`} description={available ? 'This Enterprise feature is planned but not available in the pilot dashboard.' : 'This feature requires the Enterprise tier.'} /><p className="muted">No batch or fleet data is displayed until the feature is implemented.</p></section>;
