@@ -1,4 +1,5 @@
 import type { Role } from '@hydrosense/shared';
+import { DATA_MODE } from '../app/config';
 import type {
   AccountStatus,
   AuthUser,
@@ -17,7 +18,7 @@ export interface AuthResult {
 export const SUBSCRIBED_HATCHERIES = [
   {
     id: 'camiguin-sagay',
-    name: 'Camihuin, Sagay Multispecies Hatchery',
+    name: 'Camiguin, Sagay Multispecies Hatchery',
   },
 ] as const;
 
@@ -40,6 +41,11 @@ export const DEMO_ADMIN_CREDENTIALS = {
   password: import.meta.env.VITE_ADMIN_PASSWORD || 'AdminDemo!2026',
 } as const;
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+  || 'https://iafooterjwbihuzwakoc.supabase.co';
+const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  || 'sb_publishable_Dagoxgq2hOU3RFsE8RJGaA_jUtn8oJn';
+
 const ACCOUNTS_KEY = 'hydrosense.auth.accounts.v2';
 const SESSION_KEY = 'hydrosense.auth.session.v2';
 const ADMIN_ID = 'demo-admin';
@@ -61,8 +67,80 @@ const adminUser: AuthUser & { role: 'admin'; status: 'approved' } = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
+async function listApiAdminProfiles(status: 'pending' | 'approved'): Promise<AuthUser[]> {
+  const token = window.localStorage.getItem('hydrosense.auth.access-token');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/api/v1/admin/users?status=${status}`, {
+    headers: {
+      apikey: API_KEY,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const profiles = await response.json();
+  if (!response.ok) throw new Error(profiles.error ?? 'Unable to load users.');
+  return (profiles as Array<Record<string, unknown>>).map((profile) => ({
+    id: String(profile.id),
+    firstName: String(profile.firstName ?? '').split(' ')[0] ?? '',
+    lastName: String(profile.firstName ?? '').split(' ').slice(1).join(' ') ?? '',
+    email: String(profile.email ?? ''),
+    role: profile.role as Role,
+    requestedRole: null,
+    status,
+    position: profile.position as string | undefined,
+    employeeId: profile.employeeId as string | undefined,
+    phone: profile.phone as string | undefined,
+    address: profile.address as string | undefined,
+    emergencyContactName: profile.emergencyContactName as string | undefined,
+    emergencyContactPhone: profile.emergencyContactPhone as string | undefined,
+    createdAt: new Date().toISOString(),
+  }));
+}
+
+async function updateApiProfile(userId: string, status: AccountStatus, role: RequestedRole | null): Promise<AuthUser> {
+  const token = window.localStorage.getItem('hydrosense.auth.access-token');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/api/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: API_KEY,
+      Authorization: "Bearer " + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      status,
+      role,
+      requested_role: role,
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message ?? 'Unable to update account request.');
+  const profile = Array.isArray(result) ? result[0] : result;
+  return {
+    id: String(profile.id),
+    firstName: String(profile.first_name ?? ''),
+    lastName: String(profile.last_name ?? ''),
+    email: String(profile.email ?? ''),
+    role: profile.role as Role,
+    requestedRole: profile.requested_role as RequestedRole | null,
+    status: profile.status as AccountStatus,
+    position: profile.position as string | undefined,
+    createdAt: String(profile.created_at ?? ''),
+  };
+}
+
 function isRequestedRole(value: unknown): value is RequestedRole {
   return value === 'operator' || value === 'manager';
+}
+
+async function removeApiAccount(userId: string): Promise<void> {
+  const token = window.localStorage.getItem('hydrosense.auth.access-token');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/api/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: API_KEY,
+      Authorization: `Bearer ${token ?? ''}`,
+    },
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error ?? result.message ?? 'Unable to remove account.');
 }
 
 function isStoredAccount(value: unknown): value is StoredAccount {
@@ -191,6 +269,15 @@ function assertStatusRole(status: AccountStatus, role: Role | null) {
 }
 
 export function getCurrentUser(): AuthUser | null {
+  if (DATA_MODE === 'api') {
+    const stored = window.localStorage.getItem('hydrosense.auth.user');
+    if (!stored || !window.localStorage.getItem('hydrosense.auth.access-token')) return null;
+    try {
+      return JSON.parse(stored) as AuthUser;
+    } catch {
+      return null;
+    }
+  }
   const userId = readSessionUserId();
   if (!userId) return null;
   if (userId === ADMIN_ID) return { ...adminUser };
@@ -200,12 +287,69 @@ export function getCurrentUser(): AuthUser | null {
 }
 
 export function signOut() {
+  if (DATA_MODE === 'api') {
+    window.localStorage.removeItem('hydrosense.auth.access-token');
+    window.localStorage.removeItem('hydrosense.auth.user');
+    notifyAuthChanged();
+    return;
+  }
   window.localStorage.removeItem(SESSION_KEY);
   notifyAuthChanged();
 }
 
 export const authService = {
   async signIn(email: string, password: string): Promise<AuthResult> {
+    if (DATA_MODE === 'api') {
+      if (!API_KEY) throw new Error('Supabase publishable key is not configured.');
+      const supabaseUrl = SUPABASE_URL;
+
+      const authResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          apikey: API_KEY,
+          Authorization: "Bearer " + API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
+      const authResult = await authResponse.json();
+      if (!authResponse.ok) {
+        throw new Error(authResult.error_description ?? authResult.error ?? 'Email or password is incorrect.');
+      }
+
+      const profileResponse = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(authResult.user.id)}&select=*`, {
+        headers: {
+          apikey: API_KEY,
+          Authorization: "Bearer " + authResult.access_token,
+        },
+      });
+      const profiles = await profileResponse.json();
+      const profile = Array.isArray(profiles) ? profiles[0] : undefined;
+      if (!profile || profile.status !== 'approved' || !profile.role) {
+        return { status: 'pending', redirectPath: '/pending-approval' };
+      }
+
+      const user: AuthUser = {
+        id: profile.id,
+        firstName: profile.first_name ?? '',
+        lastName: profile.last_name ?? '',
+        email: profile.email,
+        role: profile.role,
+        requestedRole: profile.requested_role,
+        status: profile.status,
+        position: profile.position ?? undefined,
+        employeeId: profile.employee_id ?? undefined,
+        phone: profile.phone ?? undefined,
+        address: profile.address ?? undefined,
+        emergencyContactName: profile.emergency_contact_name ?? undefined,
+        emergencyContactPhone: profile.emergency_contact_phone ?? undefined,
+        createdAt: profile.created_at,
+      };
+      window.localStorage.setItem('hydrosense.auth.access-token', authResult.access_token);
+      window.localStorage.setItem('hydrosense.auth.user', JSON.stringify(user));
+      notifyAuthChanged();
+      return { status: 'approved', user, redirectPath: '/' };
+    }
     const normalizedEmail = email.trim().toLowerCase();
     const accounts = readAccounts();
     const isAdmin = normalizedEmail === adminUser.email;
@@ -235,6 +379,40 @@ export const authService = {
   },
 
   async signUp(values: SignUpValues): Promise<AuthResult> {
+    if (DATA_MODE === 'api') {
+      if (!API_KEY) throw new Error('Supabase publishable key is not configured.');
+      const supabaseUrl = SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/api/v1/auth/signup`, {
+        method: 'POST',
+        headers: {
+          apikey: API_KEY,
+          Authorization: "Bearer " + API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: values.email.trim().toLowerCase(),
+          password: values.password,
+          requestedRole: values.requestedRole,
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+          position: values.position.trim(),
+          employeeId: values.employeeId.trim(),
+          phone: values.phone.trim(),
+          address: values.address.trim(),
+          emergencyContactName: values.emergencyContactName.trim(),
+          emergencyContactPhone: values.emergencyContactPhone.trim(),
+          hatcheryId: values.hatcheryId,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        if (response.status === 429 || result.error_code === 'over_email_send_rate_limit') {
+          throw new Error('Too many signup attempts. Wait a few minutes before trying again.');
+        }
+        throw new Error(result.error ?? result.msg ?? 'Unable to create account.');
+      }
+      return { status: 'pending', redirectPath: '/pending-approval' };
+    }
     if (!isRequestedRole(values.requestedRole)) {
       throw new Error('Select Operator or Manager as your requested role.');
     }
@@ -282,6 +460,12 @@ export const authService = {
 
   listPendingRequests(): PendingRequest[] {
     assertAdmin();
+    if (DATA_MODE === 'api') {
+      return listApiAdminProfiles('pending').then((users) =>
+        users.filter((user): user is PendingRequest =>
+          user.status === 'pending' && user.role === null && user.requestedRole !== null),
+      ) as unknown as PendingRequest[];
+    }
     return readAccounts()
       .map(({ user }) => user)
       .filter((user): user is PendingRequest => user.status === 'pending' && user.role === null && user.requestedRole !== null)
@@ -290,6 +474,12 @@ export const authService = {
 
   listApprovedUsers(): Array<AuthUser & { role: Role; status: 'approved' }> {
     assertAdmin();
+    if (DATA_MODE === 'api') {
+      return listApiAdminProfiles('approved').then((users) =>
+        users.filter((user): user is AuthUser & { role: Role; status: 'approved' } =>
+          user.status === 'approved' && user.role !== null),
+      ) as unknown as Array<AuthUser & { role: Role; status: 'approved' }>;
+    }
     return [
       { ...adminUser },
       ...readAccounts()
@@ -306,6 +496,7 @@ export const authService = {
     if (userId === ADMIN_ID) {
       throw new Error('The administrator role cannot be changed.');
     }
+    if (DATA_MODE === 'api') return updateApiProfile(userId, 'approved', role) as unknown as AuthUser;
     const accounts = readAccounts();
     const index = accounts.findIndex((account) => account.user.id === userId);
     if (index < 0 || accounts[index].user.status !== 'approved') {
@@ -318,11 +509,27 @@ export const authService = {
     return { ...user };
   },
 
+  removeAccount(userId: string): Promise<void> | void {
+    assertAdmin();
+    if (userId === ADMIN_ID) {
+      throw new Error('The administrator account cannot be removed.');
+    }
+    if (DATA_MODE === 'api') return removeApiAccount(userId);
+    const accounts = readAccounts();
+    const index = accounts.findIndex((account) => account.user.id === userId);
+    if (index < 0) {
+      throw new Error('Account was not found.');
+    }
+    writeAccounts(accounts.filter((account) => account.user.id !== userId));
+    notifyAuthChanged();
+  },
+
   approveRequest(userId: string, role: Role): AuthUser {
     assertAdmin();
     if (!validReviewRole(role)) {
       throw new Error('Account requests can only be approved as Operator or Manager.');
     }
+    if (DATA_MODE === 'api') return updateApiProfile(userId, 'approved', role) as unknown as AuthUser;
     const accounts = readAccounts();
     const index = accounts.findIndex((account) => account.user.id === userId);
     if (index < 0 || accounts[index].user.status !== 'pending') {
@@ -338,6 +545,7 @@ export const authService = {
 
   rejectRequest(userId: string): AuthUser {
     assertAdmin();
+    if (DATA_MODE === 'api') return updateApiProfile(userId, 'rejected', null) as unknown as AuthUser;
     const accounts = readAccounts();
     const index = accounts.findIndex((account) => account.user.id === userId);
     if (index < 0 || accounts[index].user.status !== 'pending') {
@@ -354,6 +562,23 @@ export const authService = {
   requestPasswordReset(email: string): Promise<{ message: string }> {
     if (!email.trim()) {
       return Promise.reject(new Error('Enter the email address for your account.'));
+    }
+    if (DATA_MODE === 'api') {
+      if (!API_KEY) return Promise.reject(new Error('Supabase publishable key is not configured.'));
+      const supabaseUrl = SUPABASE_URL;
+      return fetch(`${supabaseUrl}/auth/v1/recover`, {
+        method: 'POST',
+        headers: {
+          apikey: API_KEY,
+          Authorization: "Bearer " + API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      }).then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error_description ?? result.error ?? 'Unable to send password reset.');
+        return { message: 'Password reset instructions have been sent.' };
+      });
     }
     return Promise.resolve({
       message: 'Demo mode: password reset is not connected to an email service.',

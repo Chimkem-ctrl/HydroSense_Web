@@ -4,6 +4,10 @@ coverage/
 .env
 .env.local
 *.tsbuildinfo
+backend/.env
+backend/.env.local
+backend/supabase/.env
+backend/supabase/.env.local
 apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/

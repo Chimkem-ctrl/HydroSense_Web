@@ -15,7 +15,8 @@ export function setMobileAccessToken(token: string | null) {
   accessToken = token;
 }
 
-export const api = DATA_MODE === 'api' ? new HttpApiClient(API_BASE_URL, () => accessToken) : new MockApiClient();
+const apiKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+export const api = DATA_MODE === 'api' ? new HttpApiClient(API_BASE_URL, () => accessToken, apiKey) : new MockApiClient();
 export const liveClient: LiveClient = DATA_MODE === 'api'
   ? new WebSocketLiveClient(wsUrl)
   : new MockLiveClient(10_000);
