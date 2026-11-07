@@ -50,6 +50,7 @@ export default function AppRoutes() {
         <Route path="settings/thresholds" element={<Guarded path="thresholds"><ThresholdsPage /></Guarded>} />
         <Route path="admin/users" element={<Guarded path="users"><AdminUsersPage /></Guarded>} />
         <Route path="admin/logs" element={<Guarded path="logs"><AdminLogsPage /></Guarded>} />
+        <Route path="settings/notifications" element={<Navigate to="/profile?tab=alerts" replace />} />
         <Route path="profile" element={<Guarded path="profile"><ProfilePage /></Guarded>} />
         <Route path="fleet" element={<Guarded path="enterpriseFeatures"><ComingSoonPage feature="Multi-site fleet view" /></Guarded>} />
         <Route path="batch" element={<Guarded path="enterpriseFeatures"><ComingSoonPage feature="Batch tracking" /></Guarded>} />
