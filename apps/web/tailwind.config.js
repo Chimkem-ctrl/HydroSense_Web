@@ -1,0 +1,51 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./gallery.html', './src/design-system/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        canvas: 'var(--bg-from)',
+        glass: 'var(--glass-bg)',
+        'glass-strong': 'var(--glass-bg-strong)',
+        'glass-border': 'var(--glass-border)',
+        ink: 'var(--text-primary)',
+        secondary: 'var(--text-secondary)',
+        muted: 'var(--text-muted)',
+        accent: 'var(--accent)',
+        'accent-2': 'var(--accent-2)',
+        ok: 'var(--ok)',
+        warn: 'var(--warn)',
+        critical: 'var(--critical)',
+        'adv-low': 'var(--adv-low)',
+        'adv-watch': 'var(--adv-watch)',
+        'adv-high': 'var(--adv-high)',
+      },
+      spacing: {
+        1: 'var(--space-1)',
+        2: 'var(--space-2)',
+        3: 'var(--space-3)',
+        4: 'var(--space-4)',
+        6: 'var(--space-6)',
+        8: 'var(--space-8)',
+      },
+      borderRadius: {
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        pill: 'var(--radius-pill)',
+      },
+      fontSize: {
+        xs: 'var(--text-xs)',
+        sm: 'var(--text-sm)',
+        base: 'var(--text-base)',
+        lg: 'var(--text-lg)',
+        xl: 'var(--text-xl)',
+        hero: 'var(--text-hero)',
+        display: 'var(--text-display)',
+      },
+      backgroundImage: { meter: 'var(--meter)' },
+      boxShadow: { glass: 'var(--glass-shadow)' },
+    },
+  },
+  plugins: [],
+};

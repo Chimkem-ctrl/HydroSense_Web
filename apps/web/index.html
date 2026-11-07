@@ -9,6 +9,15 @@
     />
     <meta name="theme-color" content="#061c2c" />
     <title>HydroSense</title>
+    <script>
+      try {
+        var theme = localStorage.getItem('hydrosense.theme');
+        document.documentElement.dataset.theme = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      } catch (error) {
+        console.warn('Theme preference could not be loaded:', error);
+        document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

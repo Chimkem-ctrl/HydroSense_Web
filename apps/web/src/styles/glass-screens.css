@@ -1,0 +1,63 @@
+.glass-screen {
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --surface: var(--glass-bg-strong);
+  --border: var(--control-border);
+  --normal: var(--ok-text);
+  --warning: var(--warn-text);
+  --critical: var(--critical-text);
+  --advisory-low: var(--adv-low-text);
+  --advisory-watch: var(--adv-watch-text);
+  --advisory-high: var(--adv-high-text);
+  min-width: 0;
+  gap: var(--space-6);
+  padding: clamp(16px, 2.5vw, 32px);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+}
+.glass-screen .page-heading { align-items: center; margin: 0; }
+.glass-screen .page-heading h1 { font-size: clamp(24px, 3vw, 32px); font-weight: 600; }
+.glass-screen .page-heading p, .glass-screen .muted { color: var(--text-secondary); }
+.glass-screen .card { padding: clamp(18px, 2vw, 24px); }
+.glass-screen .card-title { font-size: 16px; }
+.glass-greeting p { margin: 0 0 6px; color: var(--text-secondary); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+.glass-greeting h2 { margin: 0; font-size: clamp(24px, 3vw, 36px); line-height: 1.2; font-weight: 500; }
+.glass-screen .readings-grid, .glass-advisories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.glass-screen .reading-card { min-height: 0; }
+.glass-screen .reading-label { color: var(--text-secondary); }
+.glass-screen .reading-number { margin: 22px 0 12px; font-size: clamp(34px, 3.5vw, 48px); font-weight: 400; overflow-wrap: anywhere; }
+.glass-screen .reading-meta { align-items: flex-start; flex-direction: column; color: var(--text-secondary); font-size: 12px; }
+.glass-screen .badge, .glass-screen .connection-pill { border-color: currentColor; background: var(--glass-bg-strong); }
+.reading-scale { display: grid; gap: 10px; margin-top: 20px; color: var(--text-secondary); font-size: 12px; }
+.reading-scale-track { position: relative; height: 8px; margin: 0 7px; border-radius: var(--radius-pill); background: var(--meter); }
+.reading-scale-track span { position: absolute; top: 50%; width: 14px; height: 14px; border: 2px solid var(--text-primary); border-radius: 50%; background: var(--glass-bg-strong); transform: translate(-50%, -50%); }
+.reading-updated { margin: 14px 0 0; color: var(--text-secondary); font-size: 12px; }
+.glass-section-title { margin: 0; font-size: 20px; font-weight: 600; }
+.glass-advisories { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
+.glass-advisories h3 { margin: 0 0 14px; font-size: 16px; }
+.glass-screen .advisory-chip { border-style: solid; background: var(--glass-bg-strong); }
+.glass-screen .popover { display: block; left: 0; max-width: calc(100vw - 64px); color: var(--text-primary); background: var(--glass-bg-strong); overflow-wrap: anywhere; }
+.glass-screen .state-box { background: var(--glass-bg-strong); }
+.glass-screen .tabs { gap: 4px; margin: 0; padding: 4px; border: 1px solid var(--control-border); border-radius: var(--radius-pill); background: var(--glass-bg-strong); }
+.glass-screen .tab { border-color: transparent; background: transparent; }
+.glass-screen .tab[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--text-primary); font-weight: 700; }
+.trend-charts { display: grid; gap: 16px; }
+.trend-chart-card .card-title { margin-bottom: 4px; }
+.trend-chart-card p { margin: 0 0 12px; }
+.trend-chart-frame { width: 100%; height: 320px; }
+.glass-screen .table-wrap { max-width: 100%; border: 1px solid var(--control-border); border-radius: var(--radius-md); }
+.glass-screen th { position: sticky; top: 0; background: var(--glass-bg-strong); color: var(--text-secondary); }
+.glass-screen tbody tr:nth-child(even) { background: var(--row-hover); }
+
+@media (max-width: 1050px) {
+  .glass-screen .readings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .glass-screen { gap: 18px; padding: 16px; }
+  .glass-screen .page-heading { align-items: flex-start; }
+  .glass-screen .readings-grid, .glass-advisories { grid-template-columns: 1fr; }
+  .glass-screen .reading-number { margin-top: 16px; }
+  .glass-screen .tabs { max-width: 100%; }
+  .glass-screen .tab { padding: 0 12px; }
+  .trend-chart-frame { height: 260px; }
+}

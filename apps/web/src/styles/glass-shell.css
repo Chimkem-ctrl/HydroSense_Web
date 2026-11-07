@@ -1,0 +1,99 @@
+.glass-shell, [data-theme='dark'] .glass-shell {
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --surface: var(--glass-bg-strong);
+  --surface-raised: var(--control-fill);
+  --border: var(--control-border);
+  --brand: var(--accent);
+  --brand-strong: var(--accent);
+  --normal: var(--ok-text);
+  --warning: var(--warn-text);
+  --critical: var(--critical-text);
+  --advisory-low: var(--adv-low-text);
+  --advisory-watch: var(--adv-watch-text);
+  --advisory-high: var(--adv-high-text);
+  --focus: var(--accent);
+  --shadow: var(--glass-shadow);
+  color: var(--text-primary);
+  background: radial-gradient(ellipse at 85% 0%, var(--bg-glow), transparent 55%), linear-gradient(135deg, var(--bg-from), var(--bg-via) 52%, var(--bg-to));
+  background-attachment: fixed;
+}
+.glass-shell, .glass-shell *, .auth-background, .auth-background * { transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
+.glass-shell .sidebar { inset: 16px auto 16px 16px; width: 220px; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: var(--glass-bg-strong); box-shadow: var(--glass-shadow); padding: 18px 12px 12px; }
+.glass-shell .main-area { margin-left: 252px; }
+.glass-shell .brand-mark { background: var(--button-gradient); color: var(--on-accent); }
+.glass-shell .nav-link { border-radius: var(--radius-md); }
+.glass-shell .nav-link:hover, .glass-shell .nav-link[aria-current='page'] { background: var(--accent-soft); color: var(--accent); }
+.glass-shell .page-content { position: relative; background: transparent; }
+.page-controls { position: absolute; z-index: 15; top: clamp(16px, 2.5vw, 32px); right: clamp(16px, 2.5vw, 32px); display: flex; align-items: center; justify-content: flex-end; gap: 12px; max-width: 550px; }
+.page-controls .user-name { max-width: 160px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.page-view { min-width: 0; }
+.glass-shell .page-heading { min-height: 44px; padding-right: 550px; flex-wrap: wrap; }
+.glass-shell .glass-greeting { padding-right: 550px; }
+.glass-shell .page-view > .state-box { margin-top: 60px; }
+.glass-shell .select-control, .glass-shell .icon-button, .glass-shell .button, .glass-shell .tab, .theme-control {
+  border-color: var(--control-border); border-radius: var(--radius-pill); color: var(--text-primary); background: var(--glass-bg-strong);
+}
+.glass-shell .button-primary { border-color: transparent; color: var(--on-accent); background: var(--button-gradient); }
+.glass-shell .button-danger { color: var(--critical-text); border-color: var(--critical-text); }
+.glass-shell .field input, .glass-shell .field select, .glass-shell .field textarea {
+  border-color: var(--control-border); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--glass-bg-strong);
+}
+.glass-shell .badge, .glass-shell .connection-pill { border-color: currentColor; background: var(--glass-bg-strong); }
+.glass-shell .critical-banner { border-color: var(--critical-text); color: var(--critical-text); background: var(--glass-bg-strong); }
+.glass-shell .account-menu-popover, .glass-shell .popover, .glass-shell .state-box { color: var(--text-primary); background: var(--glass-bg-strong); border-color: var(--control-border); box-shadow: var(--glass-shadow); }
+.glass-shell .state-error { color: var(--critical-text); border-color: var(--critical-text); }
+.glass-shell .advisory-chip { border-style: solid; background: var(--glass-bg-strong); }
+.glass-shell .advisory-wrap { min-width: 0; max-width: 100%; }
+.glass-shell .popover { position: static; width: min(100%, 420px); max-width: 100%; max-height: 65vh; overflow-y: auto; overflow-wrap: anywhere; }
+.advisory-evidence { margin: 16px 0; border-top: 1px solid var(--control-border); padding-top: 12px; }
+.advisory-evidence h3, .advisory-evidence h4 { margin: 12px 0 6px; font-size: 14px; }
+.advisory-evidence p, .advisory-evidence li { font-size: 12px; }
+.advisory-evidence ul { padding-left: 20px; }
+.advisory-evidence li + li { margin-top: 8px; }
+.glass-shell .dialog-backdrop { background: var(--overlay); }
+.glass-shell .dialog.card { background: var(--glass-bg-strong); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.glass-shell .table-wrap { max-width: 100%; }
+.glass-shell th { position: sticky; top: 0; z-index: 1; background: var(--glass-bg-strong); color: var(--text-secondary); }
+.glass-shell tbody tr:nth-child(even) { background: var(--row-hover); }
+.glass-shell .tab[aria-selected='true'], .glass-shell .tab[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--text-primary); }
+.theme-control { display: inline-flex; min-height: 44px; align-items: center; gap: 5px; border: 1px solid var(--control-border); padding: 0 10px; }
+.theme-control select { min-width: 0; border: 0; color: var(--text-primary); background: transparent; }
+
+.auth-background {
+  color: var(--text-primary);
+  background: radial-gradient(ellipse at 85% 0%, var(--bg-glow), transparent 55%), linear-gradient(135deg, var(--bg-from), var(--bg-via) 52%, var(--bg-to));
+}
+.auth-background::before, .auth-background::after { display: none; }
+.auth-background .auth-panel h1, .auth-background .welcome-panel h1, .auth-background .glass-title { color: var(--text-primary); }
+.auth-background .glass-subtitle { color: var(--text-secondary); line-height: 1.5; }
+.auth-background .form-label, .auth-background .terms-field, .auth-background .terms-modal h2 { color: var(--text-primary); }
+.auth-background .form-control, .auth-background .password-control { min-height: 44px; border-color: var(--control-border); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--glass-bg-strong); }
+.auth-background .password-control input { min-height: 42px; color: var(--text-primary); }
+.auth-background .form-control::placeholder, .auth-background .password-control input::placeholder { color: var(--text-secondary); opacity: 1; }
+.auth-background .password-toggle { width: 44px; height: 44px; color: var(--text-primary); }
+.auth-background select.form-control option { color: var(--text-primary); background: var(--glass-bg-strong); }
+.auth-background .primary-button, .auth-background .secondary-button { min-height: 44px; border-color: var(--control-border); color: var(--text-primary); background: var(--glass-bg-strong); }
+.auth-background .primary-button { border-color: transparent; color: var(--on-accent); background: var(--button-gradient); }
+.auth-background .auth-footer, .auth-background .operator-signup-intro, .auth-background .panel-description, .auth-background .auth-demo-disclaimer, .auth-background .demo-login-box, .auth-background .demo-login-box small, .auth-background .terms-modal p, .auth-background .form-status { color: var(--text-secondary); }
+.auth-background .forgot-link-row a, .auth-background .auth-footer a, .auth-background .inline-link, .auth-background .demo-login-box strong { color: var(--accent); }
+.auth-background .field-error { color: var(--critical-text); }
+.auth-background .demo-login-box { border-color: var(--control-border); background: var(--glass-bg-strong); }
+.auth-background .modal-backdrop { background: var(--overlay); }
+.auth-background .terms-modal { background: var(--glass-bg-strong); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+@media (max-width: 1100px) {
+  .glass-shell .sidebar { width: 72px; }
+  .glass-shell .main-area { margin-left: 104px; }
+  .page-controls { position: relative; top: auto; right: auto; max-width: none; flex-wrap: wrap; justify-content: flex-start; margin-bottom: 24px; }
+  .glass-shell .page-heading, .glass-shell .glass-greeting { padding-right: 0; }
+  .glass-shell .page-view > .state-box { margin-top: 0; }
+}
+@media (max-width: 700px) {
+  .glass-shell .sidebar { width: min(300px, 86vw); }
+  .glass-shell .main-area { margin-left: 0; }
+  .page-controls { gap: 8px; margin-bottom: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-shell *, .auth-background * { transition: none; }
+}
