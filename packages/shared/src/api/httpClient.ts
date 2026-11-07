@@ -1,13 +1,21 @@
-import type { AdvisoryRuleSettings, AlertItem, CalibrationLog, DashboardUser, ManualEntry, Reading, Tank, Threshold, ValidationRow, ValidationTolerance } from '../types';
+import type { ActivityLog, AdvisoryRuleSettings, AlertItem, CalibrationLog, DashboardUser, ManualEntry, Reading, Tank, Threshold, ValidationRow, ValidationTolerance } from '../types';
 import type { AcknowledgeAlertInput, HydroSenseApi, ReadingQuery } from './types';
 
 export class HttpApiClient implements HydroSenseApi {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly getAccessToken?: () => string | null | Promise<string | null>,
+  ) {}
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const token = await this.getAccessToken?.();
     const response = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
       ...init,
-      headers: { 'Content-Type': 'application/json', ...init?.headers },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
     });
     if (!response.ok) {
       const body = await response.text();
@@ -43,6 +51,10 @@ export class HttpApiClient implements HydroSenseApi {
   createManualEntry(entry: Omit<ManualEntry, 'id' | 'timestamp'>) {
     return this.request<ManualEntry>('/api/v1/manual-entries', { method: 'POST', body: JSON.stringify(entry) });
   }
+  listActivityLogs(tankId?: string) { return this.request<ActivityLog[]>(`/api/v1/activity-logs${tankId ? `?tank_id=${encodeURIComponent(tankId)}` : ''}`); }
+  createActivityLog(entry: Omit<ActivityLog, 'id' | 'occurredAt'>) {
+    return this.request<ActivityLog>('/api/v1/activity-logs', { method: 'POST', body: JSON.stringify(entry) });
+  }
   listThresholds() { return this.request<Threshold[]>('/api/v1/settings/thresholds'); }
   updateThresholds(thresholds: Threshold[], changedBy: string) {
     return this.request<Threshold[]>('/api/v1/settings/thresholds', { method: 'PUT', body: JSON.stringify({ thresholds, changedBy }) });
@@ -62,7 +74,7 @@ export class HttpApiClient implements HydroSenseApi {
     return this.request<ValidationTolerance>('/api/v1/validation/tolerances', { method: 'PUT', body: JSON.stringify({ tolerances, changedBy }) });
   }
   listUsers() { return this.request<DashboardUser[]>('/api/v1/admin/users'); }
-  updateUserRole(userId: string, role: DashboardUser['role'], changedBy: string) {
+  updateUserRole(userId: string, role: Exclude<DashboardUser['role'], 'admin'>, changedBy: string) {
     return this.request<DashboardUser>(`/api/v1/admin/users/${encodeURIComponent(userId)}/role`, { method: 'PUT', body: JSON.stringify({ role, changedBy }) });
   }
   listAuditLogs() { return this.request<import('../types').AuditLog[]>('/api/v1/admin/logs'); }

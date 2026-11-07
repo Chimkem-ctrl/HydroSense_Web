@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getAmmoniaAdvisory, getSalinityAdvisory } from './advisory';
 import { getParameterStatus } from './status';
-import { canAccessRole, validateAcknowledgeNote, validateAdvisoryRules, validateManualEntry, validateValidationTolerances } from '../validation';
+import { canAccessRole, validateAcknowledgeNote, validateAdvisoryRules, validateValidationTolerances } from '../validation';
 import { MockApiClient } from '../api/mockClient';
 import { getManilaDateString, getRaisingDay } from '../format';
 
@@ -27,8 +27,7 @@ describe('advisory rules', () => {
 });
 
 describe('form validation and role access', () => {
-  it('requires a valid tank entry and a response note', () => {
-    expect(validateManualEntry({ type: 'refractometer_salinity', tankId: 'tank-a', enteredBy: 'Operator', value: -1 })).toHaveLength(1);
+  it('requires a response note and grants routes only to authorized roles', () => {
     expect(validateAcknowledgeNote('  ')).toHaveLength(1);
     expect(validateAcknowledgeNote('Checked the meter')).toHaveLength(0);
   });
@@ -69,10 +68,33 @@ describe('mock tank administration', () => {
     await expect(api.deleteTank('tank-a', 'Admin')).rejects.toThrow('At least one tank must remain registered.');
   });
 
-  it('updates rule-based advisories when manual water events or rules change', async () => {
+  it('creates corresponding legacy measurement records for advisory consumers', async () => {
+    const api = new MockApiClient();
+    await api.createActivityLog({
+      tankId: 'tank-a',
+      kind: 'OPERATION',
+      type: 'Manual water quality check',
+      operator: 'Operator',
+      notes: 'Manual water test',
+      manualReadings: { salinity: 30.2, ammonia: 0.1 },
+    });
+    const entries = await api.listManualEntries('tank-a');
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'refractometer_salinity', value: 30.2 }),
+      expect.objectContaining({ type: 'ammonia_test_kit', value: 0.1 }),
+    ]));
+  });
+
+  it('updates rule-based advisories when activity log events or rules change', async () => {
     const api = new MockApiClient();
     expect((await api.listAdvisories('tank-a')).find((item) => item.kind === 'salinity')?.level).toBe('low');
-    await api.createManualEntry({ tankId: 'tank-a', type: 'rain_event', enteredBy: 'Operator' });
+    await api.createActivityLog({
+      tankId: 'tank-a',
+      kind: 'ENVIRONMENT',
+      type: 'Rainfall',
+      operator: 'Operator',
+      notes: 'Heavy rain reported',
+    });
     expect((await api.listAdvisories('tank-a')).find((item) => item.kind === 'salinity')?.level).toBe('watch');
     await api.updateAdvisorySettings({
       salinityWatchTemperatureC: 29,

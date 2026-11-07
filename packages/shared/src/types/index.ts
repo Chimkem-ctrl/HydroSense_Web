@@ -85,6 +85,29 @@ export interface ManualEntry {
   note?: string;
 }
 
+export type ActivityLogKind = 'OPERATION' | 'ENVIRONMENT' | 'ALERT RESOLUTION';
+
+export interface ActivityLog {
+  id: string;
+  tankId: string | 'hatchery';
+  kind: ActivityLogKind;
+  type: string;
+  occurredAt: string;
+  operator: string;
+  notes: string;
+  waterChangePercent?: number;
+  waterSource?: string;
+  impact?: string;
+  manualReadings?: {
+    dissolvedOxygen?: number;
+    temperature?: number;
+    ph?: number;
+    salinity?: number;
+    ammonia?: number;
+    method?: string;
+  };
+}
+
 export interface CalibrationLog {
   id: string;
   tankId: string;

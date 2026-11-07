@@ -10,9 +10,6 @@ export interface TierConfig {
   analytics: boolean;
   teamAccounts: boolean;
   integrations: boolean;
-  smsAlerts: boolean;
-  emailAlerts: boolean;
-  voiceAlerts: boolean;
   fleetView: boolean;
   batchTracking: boolean;
   pilotUnlocked: boolean;
@@ -31,9 +28,9 @@ if (unlockSetting !== undefined && unlockSetting !== 'true' && unlockSetting !==
 }
 const pilotUnlocked = import.meta.env.VITE_PILOT_UNLOCK_ALL !== 'false';
 const tierFeatures: Record<Tier, Omit<TierConfig, 'tier' | 'pilotUnlocked'>> = {
-  free: { nodeLimit: 2, refreshIntervalMs: 30_000, retentionDays: 1, analytics: false, teamAccounts: false, integrations: false, smsAlerts: false, emailAlerts: false, voiceAlerts: false, fleetView: false, batchTracking: false },
-  premium: { nodeLimit: 20, refreshIntervalMs: 10_000, retentionDays: 30, analytics: true, teamAccounts: true, integrations: true, smsAlerts: true, emailAlerts: true, voiceAlerts: false, fleetView: false, batchTracking: false },
-  enterprise: { nodeLimit: 200, refreshIntervalMs: 5_000, retentionDays: 365, analytics: true, teamAccounts: true, integrations: true, smsAlerts: true, emailAlerts: true, voiceAlerts: true, fleetView: true, batchTracking: true },
+  free: { nodeLimit: 2, refreshIntervalMs: 30_000, retentionDays: 1, analytics: false, teamAccounts: false, integrations: false, fleetView: false, batchTracking: false },
+  premium: { nodeLimit: 20, refreshIntervalMs: 10_000, retentionDays: 30, analytics: true, teamAccounts: true, integrations: true, fleetView: false, batchTracking: false },
+  enterprise: { nodeLimit: 200, refreshIntervalMs: 5_000, retentionDays: 365, analytics: true, teamAccounts: true, integrations: true, fleetView: true, batchTracking: true },
 };
 
 export const tierConfig: TierConfig = {
@@ -63,12 +60,11 @@ export const ROLE_ACCESS: Record<string, Role[]> = {
   alerts: ['operator', 'manager', 'admin'],
   thresholds: ['manager', 'admin'],
   entries: ['operator', 'manager', 'admin'],
-  reports: ['manager', 'admin'],
+  reports: ['operator', 'manager', 'admin'],
   calibration: ['operator', 'manager', 'admin'],
   validation: ['manager', 'admin'],
   users: ['admin'],
   logs: ['admin'],
-  notifications: ['operator', 'manager', 'admin'],
   profile: ['operator', 'manager', 'admin'],
   enterpriseFeatures: ['manager', 'admin'],
 };
@@ -80,7 +76,7 @@ export const NAV_ITEMS = [
   { path: '/trends', label: 'Trends', group: 'Monitor', roles: ROLE_ACCESS.trends },
   { path: '/history', label: 'Historical logs', group: 'Records', roles: ROLE_ACCESS.history },
   { path: '/alerts', label: 'Alerts center', group: 'Monitor', roles: ROLE_ACCESS.alerts },
-  { path: '/entries', label: 'Manual entries', group: 'Records', roles: ROLE_ACCESS.entries },
+  { path: '/entries', label: 'Activity logs', group: 'Records', roles: ROLE_ACCESS.entries },
   { path: '/calibration', label: 'Calibration', group: 'Records', roles: ROLE_ACCESS.calibration },
   { path: '/reports', label: 'Export', group: 'Records', roles: ROLE_ACCESS.reports },
   { path: '/validation', label: 'Validation', group: 'Records', roles: ROLE_ACCESS.validation },

@@ -34,7 +34,16 @@ export default function AlertsPage() {
   const mutation = useMutation({
     mutationFn: async ({ alertId, resolve }: { alertId: string; resolve: boolean }) => {
       const input = { note: note.trim(), user: userName };
-      return resolve ? api.resolveAlert(alertId, input) : api.acknowledgeAlert(alertId, input);
+      if (!resolve) return api.acknowledgeAlert(alertId, input);
+      const alert = await api.resolveAlert(alertId, input);
+      await api.createActivityLog({
+        tankId: alert.tankId,
+        kind: 'ALERT RESOLUTION',
+        type: `Resolved: ${alert.parameter}`,
+        operator: userName,
+        notes: input.note,
+      });
+      return alert;
     },
     onSuccess: async () => {
       setSelected(null);
@@ -42,6 +51,7 @@ export default function AlertsPage() {
       setResolveDialog(false);
       await queryClient.invalidateQueries({ queryKey: ['alerts'] });
       await queryClient.invalidateQueries({ queryKey: ['alert-responses'] });
+      await queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
       await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
     },
   });

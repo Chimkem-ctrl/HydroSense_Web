@@ -9,8 +9,8 @@ import FormInput from '../../components/common/FormInput';
 import GlassPanel from '../../components/common/GlassPanel';
 import PrimaryButton from '../../components/common/PrimaryButton';
 import { useAuthForm } from '../../hooks/useAuthForm';
-import { authService, SUBSCRIBED_HATCHERIES } from '../../services/authService';
-import type { SignUpValues } from '../../types/auth.types';
+import { authService, POSITIONS_BY_ROLE, SUBSCRIBED_HATCHERIES } from '../../services/authService';
+import type { RequestedRole, SignUpValues } from '../../types/auth.types';
 
 const initialValues: SignUpValues = {
   firstName: '',
@@ -18,7 +18,8 @@ const initialValues: SignUpValues = {
   employeeId: '',
   phone: '',
   email: '',
-  position: 'Hatchery Operator',
+  requestedRole: 'operator',
+  position: POSITIONS_BY_ROLE.operator[0],
   hatcheryId: '',
   address: '',
   emergencyContactName: '',
@@ -41,7 +42,12 @@ function validate(values: SignUpValues) {
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
     errors.email = 'Enter a valid email address.';
   }
-  if (!values.position) errors.position = 'Select your position.';
+  if (values.requestedRole !== 'operator' && values.requestedRole !== 'manager') {
+    errors.requestedRole = 'Select Operator or Manager as your requested role.';
+  }
+  if (!POSITIONS_BY_ROLE[values.requestedRole]?.includes(values.position)) {
+    errors.position = 'Select a position available for your requested role.';
+  }
   if (!values.hatcheryId) errors.hatcheryId = 'Select your subscribed hatchery.';
   if (!values.address.trim()) errors.address = 'Address is required.';
   if (!values.emergencyContactName.trim()) {
@@ -82,13 +88,31 @@ export default function SignUpPage() {
       <div className="auth-page page-enter">
         <AuthHeader size={56} />
         <GlassPanel className="auth-panel signup-panel operator-signup-panel">
-          <h1>Create an operator account</h1>
+          <h1>Request an account</h1>
           <p className="operator-signup-intro">
-            Register your staff details and select the hatchery subscribed to HydroSense.
-            Administrator accounts are provisioned separately.
+            Submit your staff details for administrator approval. Your requested role is not active until approved.
           </p>
           <form onSubmit={form.handleSubmit} noValidate>
             <div className="operator-signup-grid">
+              <div className="form-field">
+                <label className="form-label" htmlFor="requestedRole">Requested role</label>
+                <select
+                  id="requestedRole"
+                  className={`form-control${form.errors.requestedRole ? ' has-error' : ''}`}
+                  value={form.values.requestedRole}
+                  onChange={(event) => {
+                    const role = event.target.value as RequestedRole;
+                    form.setField('requestedRole', role);
+                    form.setField('position', POSITIONS_BY_ROLE[role][0]);
+                  }}
+                  aria-invalid={Boolean(form.errors.requestedRole)}
+                  required
+                >
+                  <option value="operator">Operator</option>
+                  <option value="manager">Manager</option>
+                </select>
+                {form.errors.requestedRole && <span className="field-error" role="alert">{form.errors.requestedRole}</span>}
+              </div>
               <FormInput
                 label="First name"
                 name="firstName"
@@ -131,10 +155,9 @@ export default function SignUpPage() {
                   aria-invalid={Boolean(form.errors.position)}
                   required
                 >
-                  <option value="Hatchery Operator">Hatchery Operator</option>
-                  <option value="Senior Operator">Senior Operator</option>
-                  <option value="Water Quality Technician">Water Quality Technician</option>
-                  <option value="Shift Supervisor">Shift Supervisor</option>
+                  {POSITIONS_BY_ROLE[form.values.requestedRole].map((position) => (
+                    <option key={position} value={position}>{position}</option>
+                  ))}
                 </select>
                 {form.errors.position && <span className="field-error" role="alert">{form.errors.position}</span>}
               </div>
@@ -251,7 +274,7 @@ export default function SignUpPage() {
               {form.errors.termsAccepted && <span className="field-error" id="terms-error" role="alert">{form.errors.termsAccepted}</span>}
             </div>
             <PrimaryButton type="submit" loading={form.isSubmitting} className="signup-submit">
-              Create Operator Account
+              Submit Request
             </PrimaryButton>
             {form.statusMessage && <p className="form-status" role="alert">{form.statusMessage}</p>}
           </form>
@@ -268,7 +291,7 @@ export default function SignUpPage() {
           <section className="terms-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="terms-title">
             <h2 id="terms-title">Terms and Conditions</h2>
             <p>
-              This is a demonstration application. Operator account details and password hashes are saved in
+              This is a demonstration application. Account details and password hashes are saved in
               this browser only. There is no server-side authentication or account recovery. Do not enter real
               passwords or sensitive personal information.
             </p>

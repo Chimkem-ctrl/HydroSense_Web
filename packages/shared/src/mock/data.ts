@@ -106,11 +106,10 @@ export const mockValidationRows: ValidationRow[] = [
 export const mockUsers: DashboardUser[] = [
   { id: 'user-1', name: 'Juan Dela Cruz', email: 'juan@sagay-hatchery.ph', role: 'operator', site: mockTanks[0].site, active: true, lastActive: iso(1), employeeId: 'OP-2024-001', phone: '+63 917 555 0101', position: 'Hatchery Operator', address: 'Sagay, Camiguin', emergencyContactName: 'Ana Dela Cruz', emergencyContactPhone: '+63 917 555 0102' },
   { id: 'user-2', name: 'Maria Santos', email: 'maria@sagay-hatchery.ph', role: 'manager', site: mockTanks[0].site, active: true, lastActive: iso(3), employeeId: 'MG-2022-004', phone: '+63 917 555 0201', position: 'Hatchery Manager', address: 'Sagay, Camiguin', emergencyContactName: 'Luis Santos', emergencyContactPhone: '+63 917 555 0202' },
-  { id: 'user-3', name: 'Dario Minoza', email: 'dario@sagay-hatchery.ph', role: 'admin', site: mockTanks[0].site, active: true, lastActive: iso(8), employeeId: 'AD-2021-001', phone: '+63 917 555 0301', position: 'System Administrator', address: 'Sagay, Camiguin', emergencyContactName: 'Lina Minoza', emergencyContactPhone: '+63 917 555 0302' },
 ];
 
 export const mockAuditLogs: AuditLog[] = [
   { id: 'audit-1', timestamp: iso(1), user: 'Maria Santos', action: 'Alert acknowledged', detail: 'Dissolved oxygen · Larval Tank A' },
   { id: 'audit-2', timestamp: iso(6), user: 'Dario Minoza', action: 'Threshold updated', detail: 'Temperature maximum set to 32°C' },
-  { id: 'audit-3', timestamp: iso(24), user: 'Juan Dela Cruz', action: 'Manual entry created', detail: 'Rain event · Larval Tank B' },
+  { id: 'audit-3', timestamp: iso(24), user: 'Juan Dela Cruz', action: 'Activity log created', detail: 'ENVIRONMENT · Rainfall · tank-b' },
 ];

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, signOut, SUBSCRIBED_HATCHERIES } from '../services/authService';
 import { readTankRegistry, tanks } from '../data/mockDashboardData';
+import { ACTIVITY_EVENT_TYPES, ACTIVITY_OPERATION_TYPES } from '@hydrosense/shared';
 import {
   getThreeHourReadings,
   operatorAlerts,
@@ -55,28 +56,6 @@ const navigation = [
   { label: 'Activity Log', icon: ClipboardList, target: '/operator/logs' },
   { label: 'Sensors', icon: Wifi, target: '/operator/sensors' },
   { label: 'Quick Actions', icon: Plus, target: '/operator/actions' },
-];
-
-const activityTypes = [
-  'Water change / exchange',
-  'Manual water quality check',
-  'Feeding',
-  'Tank inspection',
-  'Mortality observation',
-  'Equipment maintenance',
-  'Stocking / transfer',
-  'Water treatment',
-  'Other operation',
-];
-
-const eventTypes = [
-  'Rainfall',
-  'Unusually hot weather',
-  'Power interruption',
-  'Strong wind / storm',
-  'Unusual water appearance',
-  'Unusual fish behavior',
-  'Other environmental event',
 ];
 
 function useManilaTime() {
@@ -311,7 +290,7 @@ export default function OperatorDashboardPage() {
     ? 'overview'
     : location.pathname.split('/')[2] ?? 'overview';
   const signedInUser = getCurrentUser();
-  const activeOperatorName = signedInUser?.role === 'OPERATOR'
+  const activeOperatorName = signedInUser?.role === 'operator'
     ? `${signedInUser.firstName} ${signedInUser.lastName}`
     : operatorName;
   const activeOperatorInitials = activeOperatorName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
@@ -338,7 +317,7 @@ export default function OperatorDashboardPage() {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [activityKind, setActivityKind] = useState<LogFormKind>('OPERATION');
-  const [activityType, setActivityType] = useState(activityTypes[0]);
+  const [activityType, setActivityType] = useState<string>(ACTIVITY_OPERATION_TYPES[0]);
   const [activityNotes, setActivityNotes] = useState('');
   const [waterChangePercent, setWaterChangePercent] = useState('');
   const [waterSource, setWaterSource] = useState('');
@@ -426,7 +405,7 @@ export default function OperatorDashboardPage() {
   function openLogModal(kind: LogFormKind) {
     setActivityKind(kind);
     setEntryTankId(kind === 'ENVIRONMENT' ? 'hatchery' : tankId);
-    setActivityType(kind === 'OPERATION' ? activityTypes[0] : eventTypes[0]);
+    setActivityType(kind === 'OPERATION' ? ACTIVITY_OPERATION_TYPES[0] : ACTIVITY_EVENT_TYPES[0]);
     setActivityNotes('');
     setWaterChangePercent('');
     setWaterSource('');
@@ -607,7 +586,7 @@ export default function OperatorDashboardPage() {
   }
 
   function renderActivityTypeOptions() {
-    return (activityKind === 'OPERATION' ? activityTypes : eventTypes)
+    return (activityKind === 'OPERATION' ? ACTIVITY_OPERATION_TYPES : ACTIVITY_EVENT_TYPES)
       .map((type) => <option key={type} value={type}>{type}</option>);
   }
 
@@ -883,8 +862,8 @@ export default function OperatorDashboardPage() {
         <OperatorModal title={activityKind === 'OPERATION' ? 'Log hatchery operation' : 'Log weather or event'} description="Entries are saved in this browser for shift handover." onClose={() => setModal(null)}>
           <form className="operator-form" onSubmit={submitLog}>
             <div className="operator-form-tabs">
-              <button type="button" className={activityKind === 'OPERATION' ? 'is-selected' : ''} onClick={() => { setActivityKind('OPERATION'); setEntryTankId(tankId); setActivityType(activityTypes[0]); setFormError(''); }}>Operation</button>
-              <button type="button" className={activityKind === 'ENVIRONMENT' ? 'is-selected' : ''} onClick={() => { setActivityKind('ENVIRONMENT'); setEntryTankId('hatchery'); setActivityType(eventTypes[0]); setFormError(''); }}>Weather / event</button>
+              <button type="button" className={activityKind === 'OPERATION' ? 'is-selected' : ''} onClick={() => { setActivityKind('OPERATION'); setEntryTankId(tankId); setActivityType(ACTIVITY_OPERATION_TYPES[0]); setFormError(''); }}>Operation</button>
+              <button type="button" className={activityKind === 'ENVIRONMENT' ? 'is-selected' : ''} onClick={() => { setActivityKind('ENVIRONMENT'); setEntryTankId('hatchery'); setActivityType(ACTIVITY_EVENT_TYPES[0]); setFormError(''); }}>Weather / event</button>
             </div>
             <label>{activityKind === 'OPERATION' ? 'Tank' : 'Event scope'}<select value={entryTankId} onChange={(event) => setEntryTankId(event.target.value)}>
               {activityKind === 'ENVIRONMENT' && <option value="hatchery">Entire hatchery</option>}

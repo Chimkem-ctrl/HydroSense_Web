@@ -1,34 +1,37 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Role } from '@hydrosense/shared';
+import { getCurrentUser } from '../../services/authService';
 
-interface RoleContextValue {
-  role: Role;
-  setRole: (role: Role) => void;
-  userName: string;
-}
-
-const STORAGE_KEY = 'hydrosense.dashboard.role.v1';
-const RoleContext = createContext<RoleContextValue | null>(null);
-
-function initialRole(): Role {
-  const saved = window.localStorage.getItem(STORAGE_KEY);
-  return saved === 'operator' || saved === 'manager' || saved === 'admin' ? saved : 'admin';
-}
+const AuthRefreshContext = createContext<number | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRoleState] = useState<Role>(initialRole);
-  const setRole = (nextRole: Role) => {
-    window.localStorage.setItem(STORAGE_KEY, nextRole);
-    setRoleState(nextRole);
-  };
-  const userName = role === 'operator' ? 'Juan Dela Cruz' : role === 'manager' ? 'Maria Santos' : 'Dario Minoza';
-  const value = useMemo(() => ({ role, setRole, userName }), [role]);
-  return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setRevision((current) => current + 1);
+    window.addEventListener('hydrosense:auth-change', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('hydrosense:auth-change', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+
+  return <AuthRefreshContext.Provider value={revision}>{children}</AuthRefreshContext.Provider>;
+}
+
+export function useAuth() {
+  useContext(AuthRefreshContext);
+  return getCurrentUser();
 }
 
 export function useRole() {
-  const value = useContext(RoleContext);
-  if (!value) throw new Error('useRole must be used within RoleProvider.');
-  return value;
+  const user = useAuth();
+  if (!user || !user.role) throw new Error('useRole must be used by an authenticated user.');
+  const role: Role = user.role;
+  return {
+    role,
+    userName: `${user.firstName} ${user.lastName}`,
+  };
 }

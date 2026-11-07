@@ -13,10 +13,10 @@ import {
   FlaskConical,
   Gauge,
   LayoutDashboard,
+  LogOut,
   Menu,
   Moon,
   Settings,
-  Shield,
   Sun,
   Users,
   Waves,
@@ -25,10 +25,10 @@ import {
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { Role } from '@hydrosense/shared';
 import { liveClient } from '../../app/api';
 import { NAV_ITEMS, tierConfig } from '../../app/config';
 import { useRole } from '../../app/auth/RoleContext';
+import { signOut } from '../../services/authService';
 import { useSelectedTank } from '../../app/tank/TankContext';
 import { useOpenAlerts, useTanks } from '../../app/data/hooks';
 import { ErrorState, LoadingState } from '../common/States';
@@ -47,7 +47,6 @@ const icons: Record<string, LucideIcon> = {
   '/settings/thresholds': Settings,
   '/admin/users': Users,
   '/admin/logs': ClipboardList,
-  '/settings/notifications': Bell,
   '/profile': UserRound,
 };
 
@@ -57,7 +56,7 @@ const soonItems = [
 ];
 
 export function AppShell() {
-  const { role, setRole, userName } = useRole();
+  const { role, userName } = useRole();
   const { tankId, setTankId } = useSelectedTank();
   const tanks = useTanks();
   const alerts = useOpenAlerts();
@@ -99,8 +98,6 @@ export function AppShell() {
   const openAlerts = (alerts.data ?? []).filter((alert) => alert.status === 'open');
   const criticalAlerts = openAlerts.filter((alert) => alert.severity === 'critical');
   const routeTitle = visibleItems.find((item) => item.path === location.pathname)?.label ?? 'HydroSense';
-  const userRoles: Role[] = ['operator', 'manager', 'admin'];
-
   return (
     <div className="app-shell">
       {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
@@ -161,19 +158,12 @@ export function AppShell() {
             <button type="button" className="icon-button" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`} onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            {import.meta.env.DEV && (
-              <label className="small inline">
-                <Shield size={15} aria-hidden="true" />
-                <select className="select-control role-select" aria-label="Development role" value={role} onChange={(event) => setRole(event.target.value as Role)}>
-                  {userRoles.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
-              </label>
-            )}
             <div className="account-menu">
               <button type="button" className="small muted user-name" aria-haspopup="menu" aria-expanded={accountMenuOpen} aria-label={`Account menu for ${userName}`} onClick={() => setAccountMenuOpen((open) => !open)}><ChevronDown size={14} />{userName}</button>
               {accountMenuOpen && <div className="account-menu-popover" role="menu" aria-label="Account options">
                 <Link to="/profile" role="menuitem"><UserRound size={15} />My profile</Link>
                 <Link to="/profile?tab=alerts" role="menuitem"><Bell size={15} />Alert preferences</Link>
+                <Link to="/signin" role="menuitem" onClick={signOut}><LogOut size={15} />Sign out</Link>
               </div>}
             </div>
           </div>

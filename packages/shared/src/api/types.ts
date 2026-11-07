@@ -1,6 +1,7 @@
 import type {
   AdvisoryRuleSettings,
   AdvisoryState,
+  ActivityLog,
   AlertItem,
   AlertResponse,
   AuditLog,
@@ -43,6 +44,8 @@ export interface HydroSenseApi {
   resolveAlert(alertId: string, input: AcknowledgeAlertInput): Promise<AlertItem>;
   listManualEntries(tankId?: string): Promise<ManualEntry[]>;
   createManualEntry(entry: Omit<ManualEntry, 'id' | 'timestamp'>): Promise<ManualEntry>;
+  listActivityLogs(tankId?: string): Promise<ActivityLog[]>;
+  createActivityLog(entry: Omit<ActivityLog, 'id' | 'occurredAt'>): Promise<ActivityLog>;
   listThresholds(): Promise<Threshold[]>;
   updateThresholds(thresholds: Threshold[], changedBy: string): Promise<Threshold[]>;
   getAdvisorySettings(): Promise<AdvisoryRuleSettings>;
@@ -54,6 +57,6 @@ export interface HydroSenseApi {
   getValidationTolerances(): Promise<ValidationTolerance>;
   updateValidationTolerances(tolerances: ValidationTolerance, changedBy: string): Promise<ValidationTolerance>;
   listUsers(): Promise<DashboardUser[]>;
-  updateUserRole(userId: string, role: DashboardUser['role'], changedBy: string): Promise<DashboardUser>;
+  updateUserRole(userId: string, role: Exclude<DashboardUser['role'], 'admin'>, changedBy: string): Promise<DashboardUser>;
   listAuditLogs(): Promise<AuditLog[]>;
 }
