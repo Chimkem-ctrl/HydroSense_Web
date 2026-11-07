@@ -1,10 +1,17 @@
+import { useSearchParams } from 'react-router-dom';
 import { formatManilaDateTime } from '@hydrosense/shared';
 import { useAuth, useRole } from '../app/auth/RoleContext';
 import { SUBSCRIBED_HATCHERIES } from '../services/authService';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState } from '../components/common/States';
+import { AlertPreferencesPanel } from '../components/settings/AlertPreferencesPanel';
+
+type ProfileTab = 'details' | 'alerts';
 
 export default function ProfilePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: ProfileTab = searchParams.get('tab') === 'alerts' ? 'alerts' : 'details';
+  const selectTab = (next: ProfileTab) => setSearchParams(next === 'alerts' ? { tab: 'alerts' } : {}, { replace: true });
   const { role, userName } = useRole();
   const user = useAuth();
   const hatcheryName = user?.hatcheryId
@@ -12,8 +19,12 @@ export default function ProfilePage() {
     : 'HydroSense';
   return (
     <div className="stack">
-      <PageHeading title="My profile" description="Your account, role, hatchery assignment and emergency contact information." />
-      {!user ? <EmptyState>Profile details are not available for this account.</EmptyState> : (
+      <PageHeading title="My profile" description="Your account, role, hatchery assignment and alert preferences." />
+      <div className="tabs" role="tablist" aria-label="Profile sections">
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'details'} onClick={() => selectTab('details')}>Details</button>
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'alerts'} onClick={() => selectTab('alerts')}>Alert preferences</button>
+      </div>
+      {tab === 'alerts' ? <AlertPreferencesPanel /> : !user ? <EmptyState>Profile details are not available for this account.</EmptyState> : (
         <section className="card stack">
           <div className="inline"><span className="avatar" aria-hidden="true">{userName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><h2 className="card-title">{userName}</h2><p className="small muted">{user.position ?? 'Team member'} · {role}</p></div></div>
           <h3>Profile details</h3>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { ASSETS } from '../../config/assets';
 import {
   Activity,
   AlertTriangle,
@@ -102,8 +103,8 @@ export function AppShell() {
       {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
         <Link to="/" className="brand" aria-label="HydroSense home">
-          <span className="brand-mark"><Waves size={21} /></span>
-          <span>HydroSense<small>MILKFISH LARVAL MONITOR</small></span>
+          <img src={ASSETS.logo} alt="" className="brand-logo" />
+          <span>HydroSense<small> WATER QUALITY MONITORING</small></span>
         </Link>
         <button type="button" className="icon-button sidebar-close mobile-menu" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X size={18} /></button>
         <nav className="side-nav">
