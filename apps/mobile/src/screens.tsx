@@ -56,7 +56,10 @@ export function LoginScreen() {
     try {
       const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/api/v1/auth/signin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '',
+        },
         body: JSON.stringify({ email, password }),
       });
       const responseBody = await response.text();

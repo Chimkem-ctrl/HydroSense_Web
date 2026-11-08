@@ -17,7 +17,7 @@ export function AdminUsersPage() {
     queryKey: ['admin-users'],
     queryFn: async () => {
       const apiUsers = await api.listUsers();
-      const accountUsers: DashboardUser[] = authService.listApprovedUsers().map((user) => ({
+      const accountUsers: DashboardUser[] = (await authService.listApprovedUsers()).map((user) => ({
         id: user.id,
         name: `${user.firstName} ${user.lastName}`,
         email: user.email,
@@ -66,6 +66,13 @@ export function AdminUsersPage() {
       await queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
     },
   });
+  const removeAccount = useMutation({
+    mutationFn: async (userId: string) => authService.removeAccount(userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+    },
+  });
   return (
     <div className="stack">
       <PageHeading title="Users & roles" description={`Team accounts · tier node limit ${tierConfig.nodeLimit}. Role changes apply to the frontend mock API only until the backend is connected.`} />
@@ -105,10 +112,13 @@ export function AdminUsersPage() {
       </section>
       {!tierConfig.teamAccounts ? <section className="card"><h2 className="card-title">Team accounts require an upgrade</h2><p className="muted">Team account management is available on premium and enterprise tiers.</p></section> : users.isLoading ? <LoadingState /> : users.isError ? <ErrorState error={users.error} onRetry={() => void users.refetch()} /> : !users.data?.length ? <EmptyState>No team users are registered.</EmptyState> : (
         <section className="card">
-          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Site</th><th>Role</th><th>Last active</th></tr></thead><tbody>
-            {users.data.map((user) => <tr key={user.id}><td>{user.name}</td><td>{user.email}</td><td>{user.site}</td><td>{user.role === 'admin' ? <span>Admin</span> : <label className="field"><span className="sr-only">Role for {user.name}</span><select value={user.role} onChange={(event) => mutation.mutate({ userId: user.id, role: event.target.value as Exclude<Role, 'admin'> })}><option value="operator">Operator</option><option value="manager">Manager</option></select></label>}</td><td>{formatManilaDateTime(user.lastActive)} PHT</td></tr>)}
+          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Site</th><th>Role</th><th>Last active</th><th>Actions</th></tr></thead><tbody>
+            {users.data.map((user) => <tr key={user.id}><td>{user.name}</td><td>{user.email}</td><td>{user.site}</td><td>{user.role === 'admin' ? <span>Admin</span> : <label className="field"><span className="sr-only">Role for {user.name}</span><select value={user.role} onChange={(event) => mutation.mutate({ userId: user.id, role: event.target.value as Exclude<Role, 'admin'> })}><option value="operator">Operator</option><option value="manager">Manager</option></select></label>}</td><td>{formatManilaDateTime(user.lastActive)} PHT</td><td>{user.role === 'admin' ? '—' : <button type="button" className="button" disabled={removeAccount.isPending} onClick={() => {
+              if (window.confirm(`Remove the account for ${user.name}? This cannot be undone.`)) removeAccount.mutate(user.id);
+            }}>Remove account</button>}</td></tr>)}
           </tbody></table></div>
           {mutation.isError && <ErrorState error={mutation.error} />}
+          {removeAccount.isError && <ErrorState error={removeAccount.error} />}
         </section>
       )}
     </div>

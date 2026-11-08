@@ -30,7 +30,7 @@ export default function SystemHealthPage() {
                   <span className={`connection-pill ${device.online ? 'connection-online' : 'connection-offline'}`}><Radio size={15} />{device.online ? 'Online' : 'Offline'}</span>
                 </header>
                 <div className="grid grid-2">
-                  <p className="inline"><Battery size={17} />Battery <b>{device.batteryPct}%</b></p>
+                  <p className="inline"><Battery size={17} />Battery <b>{device.batteryPct > 0 ? `${device.batteryPct}%` : 'Unavailable'}</b></p>
                   <p className="inline">{device.powerSource === 'solar' ? <Sun size={17} /> : <Power size={17} />}Power <b>{device.powerSource}</b></p>
                   <p className="inline"><Signal size={17} />Wi-Fi <b>{wifiLabel(device.wifiRssi)} ({device.wifiRssi} dBm)</b></p>
                   <p className="inline"><CloudUpload size={17} />Pending sync <b>{device.pendingSyncCount}</b></p>

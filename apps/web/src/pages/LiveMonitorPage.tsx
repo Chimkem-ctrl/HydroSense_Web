@@ -19,6 +19,8 @@ export default function LiveMonitorPage() {
   const devices = useDeviceStatuses();
   const thresholds = useQuery({ queryKey: ['thresholds'], queryFn: () => api.listThresholds() });
   const device = devices.data?.find((item) => item.deviceId === tank?.deviceId);
+  const hasRecentReading = Boolean(reading.data && Date.now() - new Date(reading.data.timestamp).getTime() <= 15 * 60 * 1000);
+  const deviceOnline = Boolean(device?.online || hasRecentReading);
 
   if (tanks.isLoading || reading.isLoading || thresholds.isLoading) return <LoadingState />;
   if (tanks.isError) return <ErrorState error={tanks.error} onRetry={() => void tanks.refetch()} />;
@@ -35,6 +37,18 @@ export default function LiveMonitorPage() {
         <ReadingCard parameter="do" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'do')} />
         <ReadingCard parameter="ph" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'ph')} />
       </section>
+      {reading.data.ec != null || reading.data.salinity != null || reading.data.tds != null || reading.data.doSaturation != null || reading.data.doProbeTemperature != null ? (
+        <section className="card">
+          <h2 className="card-title">Expanded sensor readings</h2>
+          <div className="advisory-row">
+            {reading.data.ec != null && <span className="badge">EC {reading.data.ec.toFixed(2)} uS/cm</span>}
+            {reading.data.salinity != null && <span className="badge">Salinity {reading.data.salinity.toFixed(2)} ppm</span>}
+            {reading.data.tds != null && <span className="badge">TDS {reading.data.tds.toFixed(2)} ppm</span>}
+            {reading.data.doSaturation != null && <span className="badge">DO saturation {reading.data.doSaturation.toFixed(2)}%</span>}
+            {reading.data.doProbeTemperature != null && <span className="badge">DO probe {reading.data.doProbeTemperature.toFixed(2)} °C</span>}
+          </div>
+        </section>
+      ) : null}
       <section className="card">
         <h2 className="card-title">Water-quality advisories</h2>
         <p className="muted small">Salinity and ammonia are not measured by the sensors. These rule-based advisories are not readings.</p>
@@ -51,10 +65,14 @@ export default function LiveMonitorPage() {
         <article className="card stack">
           <h2 className="card-title">Device connection</h2>
           {devices.isLoading ? <LoadingState label="Loading device status" /> : devices.isError ? <ErrorState error={devices.error} onRetry={() => void devices.refetch()} /> : device ? (
-            <div className="inline">
-              <span className={`connection-pill ${device.online ? 'connection-online' : 'connection-offline'}`}><Radio size={15} />{device.online ? 'Online' : 'Offline'}</span>
-              <span className="badge"><Gauge size={14} />Battery {device.batteryPct}%</span>
-              <span className="badge"><AlertTriangle size={14} />{(alerts.data ?? []).length} open alerts</span>
+            <div className="stack">
+              <div className="inline">
+                <span className={`connection-pill ${deviceOnline ? 'connection-online' : 'connection-offline'}`}><Radio size={15} />{deviceOnline ? 'Online' : 'Offline'}</span>
+                <span className="badge"><Gauge size={14} />Battery {device.batteryPct > 0 ? `${device.batteryPct}%` : 'Unavailable'}</span>
+                <span className="badge"><AlertTriangle size={14} />{(alerts.data ?? []).length} open alerts</span>
+              </div>
+              {device.deviceId && <p className="small muted">Device {device.deviceId}</p>}
+              <p className="small muted">Wi-Fi {device.wifiRssi} dBm · Last seen {formatManilaDateTime(device.lastSeen)} PHT</p>
             </div>
           ) : <EmptyState>No device is assigned to this tank.</EmptyState>}
         </article>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import { DATA_MODE } from '../app/config';
 import {
   Activity,
   AlertTriangle,
@@ -565,9 +566,11 @@ export default function DashboardPage() {
         </header>
 
         <main className="dashboard-content">
-          <div className="dashboard-demo-banner">
-            <span className="demo-pulse" /> DEMONSTRATION DATA <span>Sample readings and alerts are for interface demonstration only.</span>
-          </div>
+          {DATA_MODE === 'mock' && (
+            <div className="dashboard-demo-banner">
+              <span className="demo-pulse" /> DEMONSTRATION DATA <span>Sample readings and alerts are for interface demonstration only.</span>
+            </div>
+          )}
 
           {currentPage === 'dashboard' && (
             <>
@@ -624,7 +627,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="tank-status-footer">
-                <span>{tank.hardwareConnected === false ? 'Monitoring hardware is not connected' : <><span className="status-pulse" /> Demo sensors linked</>}</span>
+                <span>{tank.hardwareConnected === false ? 'Monitoring hardware is not connected' : <><span className="status-pulse" /> {DATA_MODE === 'mock' ? 'Demo sensors linked' : 'Sensors linked'}</>}</span>
                 <span>Thresholds are configurable demo values, not hatchery standards.</span>
               </div>
             </article>
@@ -820,7 +823,7 @@ export default function DashboardPage() {
 
           <footer className="dashboard-footer">
             <span>HydroSense Monitoring Console</span>
-            <span>Dashboard time: {clock.time} PHT · Data shown for demonstration purposes.</span>
+            <span>Dashboard time: {clock.time} PHT{DATA_MODE === 'mock' ? ' · Data shown for demonstration purposes.' : ''}</span>
           </footer>
         </main>
       </div>
