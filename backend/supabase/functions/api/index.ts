@@ -426,6 +426,24 @@ Deno.serve(async (request) => {
     return json({ id: data.id, tankId: data.tank_id, parameter: data.parameter, standard: data.standard, before: data.before_value, after: data.after_value, date: data.date, user: data.user_name, nextDue: data.next_due }, 201);
   }
 
+  if (action === "/v1/validation" && request.method === "GET") {
+    let query = admin.from("validation_rows").select("*");
+    if (url.searchParams.get("tank_id")) query = query.eq("tank_id", url.searchParams.get("tank_id"));
+    const { data, error } = await query;
+    if (error) return json({ error: error.message }, 500);
+    return json(data?.map((row) => ({
+      id: row.id,
+      tankId: row.tank_id,
+      parameter: row.parameter,
+      hydrosenseMean: row.hydrosense_mean,
+      reference: row.reference,
+      error: row.error,
+      pctError: row.pct_error,
+      tolerance: row.tolerance,
+      pass: row.pass,
+    })) ?? []);
+  }
+
   if (action === "/v1/validation/tolerances" && ["GET", "PUT"].includes(request.method)) {
     if (request.method === "GET") {
       const { data, error } = await admin.from("validation_tolerances").select("*").eq("id", true).single();
