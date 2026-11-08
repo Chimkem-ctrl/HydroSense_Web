@@ -21,6 +21,7 @@ const client = new pg.Client({
   user: process.env.SUPABASE_DB_USER ?? "postgres",
   password: databasePassword,
   ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: Number(process.env.SUPABASE_DB_CONNECT_TIMEOUT_MS ?? "15000"),
   ...(process.env.SUPABASE_DB_HOST?.includes(":") ? { host: process.env.SUPABASE_DB_HOST, family: 6 } : {}),
 });
 

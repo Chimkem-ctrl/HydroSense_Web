@@ -30,7 +30,7 @@ import { NAV_ITEMS, tierConfig } from '../../app/config';
 import { useRole } from '../../app/auth/RoleContext';
 import { signOut } from '../../services/authService';
 import { useSelectedTank } from '../../app/tank/TankContext';
-import { useOpenAlerts, useTanks } from '../../app/data/hooks';
+import { useLatestReading, useOpenAlerts, useTanks } from '../../app/data/hooks';
 import { ErrorState, LoadingState } from '../common/States';
 
 const icons: Record<string, LucideIcon> = {
@@ -44,6 +44,7 @@ const icons: Record<string, LucideIcon> = {
   '/calibration': FlaskConical,
   '/reports': FileDown,
   '/validation': Gauge,
+  '/settings': Settings,
   '/settings/thresholds': Settings,
   '/admin/users': Users,
   '/admin/logs': ClipboardList,
@@ -59,12 +60,18 @@ export function AppShell() {
   const { role, userName } = useRole();
   const { tankId, setTankId } = useSelectedTank();
   const tanks = useTanks();
+  const latestReading = useLatestReading(tankId);
   const alerts = useOpenAlerts();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connection, setConnection] = useState(liveClient.getConnectionState());
   const [theme, setTheme] = useState<'light' | 'dark'>(() => window.localStorage.getItem('hydrosense.theme') === 'dark' ? 'dark' : 'light');
+  const latestReadingIsRecent = Boolean(
+    latestReading.data &&
+    Date.now() - new Date(latestReading.data.timestamp).getTime() <= 15 * 60 * 1000,
+  );
+  const displayConnection = connection === 'connected' || latestReadingIsRecent ? 'connected' : connection;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -149,8 +156,8 @@ export function AppShell() {
                 </select>
               </label>
             )}
-            <span className={`connection-pill ${connection === 'connected' ? 'connection-online' : 'connection-offline'}`} aria-label={`Connection ${connection}`}>
-              <span aria-hidden="true">●</span><span>{connection === 'connected' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Offline'}</span>
+            <span className={`connection-pill ${displayConnection === 'connected' ? 'connection-online' : 'connection-offline'}`} aria-label={`Connection ${displayConnection}`}>
+              <span aria-hidden="true">●</span><span>{displayConnection === 'connected' ? 'Live' : displayConnection === 'connecting' ? 'Connecting' : 'Offline'}</span>
             </span>
             <Link to="/alerts" className="icon-button" aria-label={`${openAlerts.length} open alerts`}>
               <Bell size={18} /><span>{openAlerts.length}</span>

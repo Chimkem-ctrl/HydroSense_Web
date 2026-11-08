@@ -82,6 +82,59 @@ Deno.serve(async (request) => {
     });
   }
 
+  if (action === "/v1/ingest/readings" && request.method === "POST") {
+    const hardwareKey = Deno.env.get("HARDWARE_INGEST_API_KEY");
+    const suppliedKey = request.headers.get("x-hardware-api-key");
+    if (!hardwareKey || suppliedKey !== hardwareKey) {
+      return json({ error: "Invalid hardware API key." }, 401);
+    }
+
+    const reading = await request.json();
+    const deviceId = String(reading.deviceId ?? "").trim();
+    const temperature = Number(reading.temperature);
+    const doMgL = Number(reading.doMgL);
+    const ph = Number(reading.ph);
+    if (!deviceId || ![temperature, doMgL, ph].every(Number.isFinite)) {
+      return json({ error: "deviceId, temperature, doMgL, and ph are required numeric values." }, 400);
+    }
+
+    const { data: tank, error: tankError } = await admin.from("tanks")
+      .select("id").eq("device_id", deviceId).maybeSingle();
+    if (tankError) return json({ error: tankError.message }, 500);
+    if (!tank) return json({ error: "Device is not linked to a tank." }, 404);
+
+    const optionalNumber = (value: unknown) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    };
+    const { data, error } = await admin.from("readings").insert({
+      tank_id: tank.id,
+      temperature,
+      do_mg_l: doMgL,
+      ph,
+      ec_u_s_cm: optionalNumber(reading.ec),
+      salinity_ppm: optionalNumber(reading.salinity),
+      tds_ppm: optionalNumber(reading.tds),
+      do_saturation_pct: optionalNumber(reading.doSaturation),
+      do_probe_temperature: optionalNumber(reading.doProbeTemperature),
+    }).select("id,timestamp").single();
+    if (error) return json({ error: error.message }, 400);
+
+    const wifiRssi = optionalNumber(reading.wifiRssi);
+    const batteryPct = optionalNumber(reading.batteryPct);
+    await admin.from("device_statuses").upsert({
+      device_id: deviceId,
+      online: true,
+      last_seen: new Date().toISOString(),
+      power_source: String(reading.powerSource ?? "grid"),
+      wifi_rssi: wifiRssi ?? 0,
+      pending_sync_count: optionalNumber(reading.pendingSyncCount) ?? 0,
+      battery_pct: batteryPct ?? null,
+    }, { onConflict: "device_id" });
+
+    return json({ accepted: true, readingId: data.id, timestamp: data.timestamp }, 201);
+  }
+
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return json({ error: "Authentication required." }, 401);
   const authClient = createClient(supabaseUrl, anonKey, {
@@ -133,21 +186,65 @@ Deno.serve(async (request) => {
       temperature: reading.temperature,
       doMgL: reading.do_mg_l,
       ph: reading.ph,
+      ec: reading.ec_u_s_cm,
+      salinity: reading.salinity_ppm,
+      tds: reading.tds_ppm,
+      doSaturation: reading.do_saturation_pct,
+      doProbeTemperature: reading.do_probe_temperature,
     })).filter((reading) => !url.searchParams.get("parameter") || url.searchParams.get("parameter") === "all" || ["temperature", "do", "ph"].includes(url.searchParams.get("parameter")!)));
   }
 
   if (action === "/v1/devices/status" && request.method === "GET") {
     const { data, error } = await admin.from("device_statuses").select("*");
     if (error) return json({ error: error.message }, 500);
-    return json(data?.map((status) => ({
-      deviceId: status.device_id,
-      online: status.online,
-      lastSeen: status.last_seen,
-      batteryPct: status.battery_pct,
-      powerSource: status.power_source,
-      wifiRssi: status.wifi_rssi,
-      pendingSyncCount: status.pending_sync_count,
-    })));
+    const { data: tanks, error: tanksError } = await admin.from("tanks").select("id,device_id");
+    if (tanksError) return json({ error: tanksError.message }, 500);
+    const tankIds = (tanks ?? []).map((tank) => tank.id);
+    let readings: Array<{ tank_id: string; timestamp: string }> | null = null;
+    if (tankIds.length > 0) {
+      const readingsResult = await admin
+        .from("readings")
+        .select("tank_id,timestamp")
+        .in("tank_id", tankIds)
+        .order("timestamp", { ascending: false });
+      if (readingsResult.error) return json({ error: readingsResult.message }, 500);
+      readings = readingsResult.data as Array<{ tank_id: string; timestamp: string }>;
+    }
+
+    const latestReadingByTank = new Map<string, string>();
+    for (const reading of readings ?? []) {
+      if (!latestReadingByTank.has(reading.tank_id)) latestReadingByTank.set(reading.tank_id, reading.timestamp);
+    }
+    const latestReadingByDevice = new Map<string, string>();
+    for (const tank of tanks ?? []) {
+      const timestamp = latestReadingByTank.get(tank.id);
+      if (timestamp) latestReadingByDevice.set(tank.device_id, timestamp);
+    }
+    const statusesByDevice = new Map((data ?? []).map((status) => [status.device_id, status]));
+    const deviceIds = new Set([
+      ...(data ?? []).map((status) => status.device_id),
+      ...latestReadingByDevice.keys(),
+    ]);
+    const now = Date.now();
+    const onlineWindowMs = 15 * 60 * 1000;
+
+    return json([...deviceIds].map((deviceId) => {
+      const status = statusesByDevice.get(deviceId);
+      const readingTimestamp = latestReadingByDevice.get(deviceId);
+      const statusTimestamp = status?.last_seen as string | undefined;
+      const lastSeen = readingTimestamp && (!statusTimestamp || readingTimestamp > statusTimestamp)
+        ? readingTimestamp
+        : statusTimestamp ?? readingTimestamp ?? null;
+      return {
+        deviceId,
+        online: Boolean(lastSeen && now - new Date(lastSeen).getTime() <= onlineWindowMs),
+        lastSeen: lastSeen ?? new Date(0).toISOString(),
+        batteryPct: status?.battery_pct ?? 0,
+        powerSource: status?.power_source ?? "battery",
+        wifiRssi: status?.wifi_rssi ?? 0,
+        pendingSyncCount: status?.pending_sync_count ?? 0,
+      };
+    }));
   }
 
   if (action.startsWith("/v1/tanks/") && action.endsWith("/readings/latest") && request.method === "GET") {
@@ -161,6 +258,11 @@ Deno.serve(async (request) => {
       temperature: data.temperature,
       doMgL: data.do_mg_l,
       ph: data.ph,
+      ec: data.ec_u_s_cm,
+      salinity: data.salinity_ppm,
+      tds: data.tds_ppm,
+      doSaturation: data.do_saturation_pct,
+      doProbeTemperature: data.do_probe_temperature,
     } : null);
   }
 

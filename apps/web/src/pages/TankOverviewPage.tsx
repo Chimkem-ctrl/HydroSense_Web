@@ -116,7 +116,8 @@ export default function TankOverviewPage() {
         <section className="grid grid-2">
           {query.data.map(({ tank, reading, advisories, alerts }) => {
             const device = devices.data?.find((item) => item.deviceId === tank.deviceId);
-            const deviceStatus = device ? (device.online ? 'Online' : 'Offline') : 'Status unavailable';
+            const hasRecentReading = Boolean(reading && Date.now() - new Date(reading.timestamp).getTime() <= 15 * 60 * 1000);
+            const deviceStatus = device?.online || hasRecentReading ? 'Online' : device ? 'Offline' : 'Status unavailable';
             return (
             <article key={tank.id} className="card stack" aria-label={tank.name}>
               <header className="inline" style={{ justifyContent: 'space-between' }}>

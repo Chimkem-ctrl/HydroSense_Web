@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import GlassPanel from '../common/GlassPanel';
 import { getCurrentUser, SUBSCRIBED_HATCHERIES } from '../../services/authService';
 import ToggleSwitch from './ToggleSwitch';
 
@@ -19,7 +18,7 @@ export default function ProfileDetailsCard() {
     setPrefs((current) => ({ ...current, [key]: value }));
 
   return (
-    <GlassPanel className="settings-card">
+    <section className="card settings-card">
       <div className="profile-identity">
         <span className="avatar avatar-lg" aria-hidden="true">
           {initials}
@@ -72,14 +71,14 @@ export default function ProfileDetailsCard() {
       <div className="settings-box settings-actions">
         <button
           type="button"
-          className="danger-button"
+          className="button button-danger"
           onClick={() => setNotice('Sensor calibration requested.')}
         >
           Request Calibrate Sensors
         </button>
         <button
           type="button"
-          className="danger-button"
+          className="button button-danger"
           onClick={() => setNotice('Hardware node reboot requested.')}
         >
           Request Reboot Hardware Node
@@ -90,6 +89,6 @@ export default function ProfileDetailsCard() {
           {notice}
         </p>
       )}
-    </GlassPanel>
+    </section>
   );
 }

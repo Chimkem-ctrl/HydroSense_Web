@@ -1,9 +1,13 @@
-.settings-content {
+.settings-heading-row {
+  display: flex;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .settings-page {
-  width: min(100%, 1200px);
+  width: 100%;
+  max-width: 1280px;
   margin-inline: auto;
 }
 
@@ -58,15 +62,25 @@
 
 .settings-grid {
   display: grid;
-  grid-template-columns: 25fr 45fr 30fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
-  gap: 20px;
+  gap: 16px;
+}
+
+.settings-column {
+  min-width: 0;
+}
+
+.settings-column-wide {
+  grid-column: 1 / -1;
 }
 
 .settings-card {
   min-width: 0;
   padding: 20px;
   text-align: left;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .settings-card-title {
@@ -76,7 +90,7 @@
 }
 
 .settings-section-title {
-  margin: 16px 0 8px;
+  margin: 20px 0 10px;
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -184,6 +198,94 @@
   white-space: nowrap;
 }
 
+.device-provision-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.settings-column-wide .device-provision-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.settings-column-wide .device-provision-form .button {
+  width: 100%;
+}
+
+.settings-column-wide .provision-submit {
+  height: 44px;
+  grid-column: 1 / 2;
+  justify-self: start;
+  width: 180px;
+}
+
+.settings-column-wide .settings-provision-message {
+  grid-column: 1 / -1;
+}
+
+.device-provision-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.device-provision-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: inherit;
+  min-height: 44px;
+}
+
+.device-provision-form .button,
+.settings-actions .danger-button,
+.settings-box > .danger-button-wide,
+.settings-actions .button {
+  width: auto;
+  min-height: 40px;
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: 8px;
+  text-align: center;
+  justify-content: space-between;
+}
+
+.settings-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.device-provision-link {
+  width: 180px;
+  box-sizing: border-box;
+  margin-top: 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.settings-provision-message {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.device-provision-link {
+  display: block;
+  margin-top: 12px;
+  color: var(--color-aqua);
+  font-size: 0.78rem;
+}
+
 .toggle-switch {
   position: relative;
   width: 34px;
@@ -223,10 +325,8 @@
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding: 0;
-  border: 0;
+  padding: 0 12px;
   color: inherit;
-  background: none;
   font-size: 0.78rem;
   text-align: left;
   cursor: pointer;
@@ -244,19 +344,23 @@
 }
 
 .danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   max-width: 100%;
-  padding: 5px 12px;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 1px solid var(--color-danger);
-  border-radius: 999px;
-  color: var(--color-white);
-  background: rgba(255, 107, 107, 0.25);
+  border-radius: 9px;
+  color: var(--critical);
+  background: var(--surface);
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .danger-button:hover {
-  background: rgba(255, 107, 107, 0.4);
+  background: color-mix(in srgb, var(--critical) 8%, var(--surface));
 }
 
 .danger-button-wide {
@@ -284,8 +388,39 @@
   font-size: 0.82rem;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
   .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-column-wide {
+    grid-column: 1 / -1;
+  }
+
+  .settings-column-wide .device-provision-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-column-wide .device-provision-form .button {
+    grid-column: auto;
+  }
+
+  .settings-column-wide .provision-submit {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-column-wide,
+  .settings-column {
+    grid-column: 1;
+  }
+
+  .settings-column-wide .device-provision-form {
     grid-template-columns: 1fr;
   }
 }

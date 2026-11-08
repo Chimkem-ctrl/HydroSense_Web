@@ -10,6 +10,11 @@ export interface Reading {
   temperature: number;
   doMgL: number;
   ph: number;
+  ec?: number;
+  salinity?: number;
+  tds?: number;
+  doSaturation?: number;
+  doProbeTemperature?: number;
 }
 
 export interface Tank {

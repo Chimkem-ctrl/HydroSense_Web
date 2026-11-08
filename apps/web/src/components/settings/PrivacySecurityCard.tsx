@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import GlassPanel from '../common/GlassPanel';
 import ToggleSwitch from './ToggleSwitch';
 
 interface PrivacySecurityCardProps {
@@ -15,7 +14,7 @@ export default function PrivacySecurityCard({
   const [loggedOut, setLoggedOut] = useState(false);
 
   return (
-    <GlassPanel className="settings-card">
+    <section className="card settings-card">
       <h2 className="settings-card-title">Privacy &amp; Security</h2>
 
       <h3 className="settings-section-title">Security &amp; Authentication</h3>
@@ -32,7 +31,7 @@ export default function PrivacySecurityCard({
           checked={requireOtp}
           onChange={setRequireOtp}
         />
-        <button type="button" className="settings-link-row">
+        <button type="button" className="button settings-link-row">
           Change Password <span aria-hidden="true">&rsaquo;</span>
         </button>
       </div>
@@ -55,7 +54,7 @@ export default function PrivacySecurityCard({
         </p>
         <button
           type="button"
-          className="danger-button danger-button-wide"
+          className="button button-danger danger-button-wide"
           onClick={() => setLoggedOut(true)}
         >
           Log Out All Sessions
@@ -77,7 +76,7 @@ export default function PrivacySecurityCard({
         />
         <button
           type="button"
-          className="settings-link-row"
+          className="button settings-link-row"
           onClick={onViewAuditTrail}
         >
           <span>
@@ -86,6 +85,6 @@ export default function PrivacySecurityCard({
           <span aria-hidden="true">&rsaquo;</span>
         </button>
       </div>
-    </GlassPanel>
+    </section>
   );
 }

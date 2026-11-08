@@ -84,4 +84,5 @@ export const NAV_ITEMS = [
   { path: '/admin/users', label: 'Users & roles', group: 'Manage', roles: ROLE_ACCESS.users },
   { path: '/admin/logs', label: 'Audit & system logs', group: 'Manage', roles: ROLE_ACCESS.logs },
   { path: '/profile', label: 'My profile', group: 'Manage', roles: ROLE_ACCESS.profile },
+  { path: '/settings', label: 'Account settings', group: 'Manage', roles: ROLE_ACCESS.profile },
 ] as const;

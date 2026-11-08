@@ -24,6 +24,7 @@ import SignInPage from '../pages/auth/SignInPage';
 import SignUpPage from '../pages/auth/SignUpPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import PendingApprovalPage from '../pages/auth/PendingApprovalPage';
+import AccountSettingsPage from '../pages/settings/AccountSettingsPage';
 
 function Guarded({ path, children }: { path: keyof typeof ROLE_ACCESS; children: ReactNode }) {
   return <RoleGuard roles={ROLE_ACCESS[path] as Role[]}>{children}</RoleGuard>;
@@ -48,6 +49,7 @@ export default function AppRoutes() {
         <Route path="reports" element={<Guarded path="reports"><ReportsPage /></Guarded>} />
         <Route path="validation" element={<Guarded path="validation"><ValidationPage /></Guarded>} />
         <Route path="settings/thresholds" element={<Guarded path="thresholds"><ThresholdsPage /></Guarded>} />
+        <Route path="settings" element={<Guarded path="profile"><AccountSettingsPage /></Guarded>} />
         <Route path="admin/users" element={<Guarded path="users"><AdminUsersPage /></Guarded>} />
         <Route path="admin/logs" element={<Guarded path="logs"><AdminLogsPage /></Guarded>} />
         <Route path="settings/notifications" element={<Navigate to="/profile?tab=alerts" replace />} />
