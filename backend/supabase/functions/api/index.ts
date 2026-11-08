@@ -404,6 +404,60 @@ Deno.serve(async (request) => {
     return json(body.settings);
   }
 
+  if (action === "/v1/manual-entries" && ["GET", "POST"].includes(request.method)) {
+    if (request.method === "GET") {
+      let query = admin.from("manual_entries").select("*");
+      if (url.searchParams.get("tank_id")) query = query.eq("tank_id", url.searchParams.get("tank_id"));
+      const { data, error } = await query.order("timestamp", { ascending: false });
+      if (error) return json({ error: error.message }, 500);
+      return json(data?.map((row) => ({
+        id: row.id, tankId: row.tank_id, type: row.type, value: row.value,
+        unit: row.unit, timestamp: row.timestamp, enteredBy: row.entered_by, note: row.note,
+      })) ?? []);
+    }
+
+    const body = await request.json();
+    const { data, error } = await admin.from("manual_entries").insert({
+      tank_id: body.tankId, type: body.type, value: body.value ?? null,
+      unit: body.unit ?? null, timestamp: body.timestamp, entered_by: body.enteredBy, note: body.note ?? null,
+    }).select().single();
+    if (error) return json({ error: error.message }, 400);
+    return json({
+      id: data.id, tankId: data.tank_id, type: data.type, value: data.value,
+      unit: data.unit, timestamp: data.timestamp, enteredBy: data.entered_by, note: data.note,
+    }, 201);
+  }
+
+  if (action === "/v1/activity-logs" && ["GET", "POST"].includes(request.method)) {
+    if (request.method === "GET") {
+      let query = admin.from("activity_logs").select("*");
+      if (url.searchParams.get("tank_id")) query = query.eq("tank_id", url.searchParams.get("tank_id"));
+      const { data, error } = await query.order("occurred_at", { ascending: false });
+      if (error) return json({ error: error.message }, 500);
+      return json(data?.map((row) => ({
+        id: row.id, tankId: row.tank_id, kind: row.kind, type: row.type,
+        occurredAt: row.occurred_at, operator: row.operator, notes: row.notes,
+        waterChangePercent: row.water_change_percent, waterSource: row.water_source,
+        impact: row.impact, manualReadings: row.manual_readings,
+      })) ?? []);
+    }
+
+    const body = await request.json();
+    const { data, error } = await admin.from("activity_logs").insert({
+      tank_id: body.tankId, kind: body.kind, type: body.type, occurred_at: body.occurredAt,
+      operator: body.operator, notes: body.notes ?? "", water_change_percent: body.waterChangePercent ?? null,
+      water_source: body.waterSource ?? null, impact: body.impact ?? null,
+      manual_readings: body.manualReadings ?? null,
+    }).select().single();
+    if (error) return json({ error: error.message }, 400);
+    return json({
+      id: data.id, tankId: data.tank_id, kind: data.kind, type: data.type,
+      occurredAt: data.occurred_at, operator: data.operator, notes: data.notes,
+      waterChangePercent: data.water_change_percent, waterSource: data.water_source,
+      impact: data.impact, manualReadings: data.manual_readings,
+    }, 201);
+  }
+
   if (action === "/v1/calibrations" && ["GET", "POST"].includes(request.method)) {
     if (request.method === "GET") {
       let query = admin.from("calibration_logs").select("*");
