@@ -222,6 +222,89 @@ Example error:
 
 ## Local environment configuration
 
+## Backend startup guide
+
+### Prerequisites
+
+- Node.js 20 or newer
+- npm
+- Supabase CLI
+- Docker Desktop, only for running the complete local Supabase stack
+- Access to the HydroSense Supabase project
+
+### Install and configure
+
+From the repository root:
+
+```powershell
+npm install
+npx supabase login
+```
+
+Create `backend/.env.local` from the database settings stored in the Supabase project dashboard:
+
+```dotenv
+SUPABASE_PROJECT_REF=your-project-reference
+SUPABASE_DB_HOST=your-host
+SUPABASE_DB_PORT=5432
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_USER=your-database-user
+SUPABASE_DB_PASSWORD=your-database-password
+```
+
+The database password is not a frontend or deployment secret and must never be committed.
+
+### Start local Supabase
+
+Docker Desktop must be running:
+
+```powershell
+npm run start --workspace @hydrosense/backend
+```
+
+Stop the local stack with:
+
+```powershell
+npm run stop --workspace @hydrosense/backend
+```
+
+### Start with a hosted Supabase project
+
+Link the repository to the hosted project:
+
+```powershell
+npx supabase link --project-ref your-project-reference --workdir backend/supabase
+```
+
+Apply migrations and deploy the API:
+
+```powershell
+npm run db:migrate --workspace @hydrosense/backend
+npm run deploy:api --workspace @hydrosense/backend
+```
+
+The API function can also be deployed directly:
+
+```powershell
+npx supabase functions deploy api --project-ref your-project-reference --workdir backend/supabase --yes
+```
+
+### Start the web application
+
+From the repository root, configure `apps/web/.env.local` and start the web workspace:
+
+```dotenv
+VITE_DATA_MODE=api
+VITE_API_BASE_URL=https://your-project-reference.supabase.co/functions/v1/api
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+```powershell
+npm run dev
+```
+
+The Vite server prints the local URL, normally `http://localhost:5173`.
+
 Create `backend/.env.local`. This file is excluded by Git.
 
 ```dotenv
