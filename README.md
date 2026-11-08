@@ -28,6 +28,23 @@ npm run build
 
 The Vite development server prints the local URL. Run `npm run dev:mobile` and open the project in an Android emulator or device. For a native Android development build, install the Android SDK and run `npm run android:mobile`. The mobile app uses native notifications and file sharing; use an Expo development build for full native behavior. Web production output is written to `dist/`; `npm run build` also type-checks the mobile app.
 
+## Glass design review
+
+Run `npm run dev`, then open `/gallery.html` on the printed Vite URL. This is a development-only, standalone review page and is not included in the production build. Its Light, Dark and System choice is stored separately from the dashboard preference. The dashboard and sign-in pages use the same glass tokens; the dashboard theme selector supports Light, Dark and System, with System as the default.
+
+The CSS variables are in `apps/web/src/design-system/tokens.css`, with Tailwind mappings in `apps/web/tailwind.config.js` and the shared glass recipe in `apps/web/src/design-system/glass.css`. Tokens are scoped to the gallery, dashboard shell and authentication pages. Readable semantic `*-text` variants are used for small labels, rather than the brighter decorative status colors.
+
+- **Do:** use `.glass` for the outer surface and solid/translucent non-blurred inner tiles, pair status color with an icon and label, and use tabular numbers for measurements.
+- **Do:** keep advisory explanations distinct from sensor values, preserve visible alert text, support keyboard focus, and honor reduced motion and transparency.
+- **Don't:** stack blurred glass layers, place text directly over decorative gradients, use the rainbow meter to imply status without a numeric label, or present simulated controls as hardware controls.
+- The gallery uses opaque-enough fallback surfaces when blur or reduced transparency is unavailable; its mock interactions do not update dashboard data.
+
+### Advisory context
+
+Opening a salinity or ammonia advisory shows its existing rule and inputs, plus separate seven-day context: available temperature and, for ammonia, pH readings, and tank-specific or hatchery-wide activity logs. The trend summary shows first and last values and the observed range; sampling is normally every three hours, but missing samples are not estimated. Reading history is subject to the tier's retention and analytics settings. Manual salinity and ammonia entries are identified as manual results, not sensor readings.
+
+The context does **not** change the advisory level or claim that a listed event caused it. In mock mode, the existing rules may consider older water events and use a preset feeding-load input rather than deriving it from the displayed logs. These rules are demonstration logic, not a validated assessment of hatchery risk.
+
 ## Configuration
 
 Copy `.env.example` to `.env.local` and set values as needed:

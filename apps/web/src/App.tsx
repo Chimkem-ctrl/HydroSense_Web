@@ -4,10 +4,11 @@ import AppRoutes from './app/AppRoutes';
 import { RoleProvider } from './app/auth/RoleContext';
 import { TankProvider } from './app/tank/TankContext';
 import { queryClient } from './app/query';
+import { ThemeProvider } from './app/ThemeContext';
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <ThemeProvider><QueryClientProvider client={queryClient}>
       <RoleProvider>
         <TankProvider>
           <BrowserRouter>
@@ -15,6 +16,6 @@ export default function App() {
           </BrowserRouter>
         </TankProvider>
       </RoleProvider>
-    </QueryClientProvider>
+    </QueryClientProvider></ThemeProvider>
   );
 }

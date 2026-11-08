@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" class="glass-review">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HydroSense design gallery</title>
+    <script>
+      try {
+        var choice = localStorage.getItem('hydrosense.gallery.theme') || 'system';
+        var dark = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (error) {
+        console.warn('Gallery theme preference could not be loaded:', error);
+        document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/design-system/main.tsx"></script>
+  </body>
+</html>

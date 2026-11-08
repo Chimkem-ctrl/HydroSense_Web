@@ -32,6 +32,8 @@ import { signOut } from '../../services/authService';
 import { useSelectedTank } from '../../app/tank/TankContext';
 import { useLatestReading, useOpenAlerts, useTanks } from '../../app/data/hooks';
 import { ErrorState, LoadingState } from '../common/States';
+import { useTheme } from '../../app/ThemeContext';
+import type { ThemeChoice } from '../../app/ThemeContext';
 
 const icons: Record<string, LucideIcon> = {
   '/': LayoutDashboard,
@@ -66,17 +68,12 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connection, setConnection] = useState(liveClient.getConnectionState());
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => window.localStorage.getItem('hydrosense.theme') === 'dark' ? 'dark' : 'light');
+  const { choice: theme, setChoice: setTheme } = useTheme();
   const latestReadingIsRecent = Boolean(
     latestReading.data &&
     Date.now() - new Date(latestReading.data.timestamp).getTime() <= 15 * 60 * 1000,
   );
   const displayConnection = connection === 'connected' || latestReadingIsRecent ? 'connected' : connection;
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem('hydrosense.theme', theme);
-  }, [theme]);
 
   useEffect(() => {
     const unsubscribe = liveClient.subscribeConnection(setConnection);
@@ -104,9 +101,8 @@ export function AppShell() {
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const openAlerts = (alerts.data ?? []).filter((alert) => alert.status === 'open');
   const criticalAlerts = openAlerts.filter((alert) => alert.severity === 'critical');
-  const routeTitle = visibleItems.find((item) => item.path === location.pathname)?.label ?? 'HydroSense';
   return (
-    <div className="app-shell">
+    <div className="app-shell glass-shell">
       {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
         <Link to="/" className="brand" aria-label="HydroSense home">
@@ -142,12 +138,16 @@ export function AppShell() {
       </aside>
 
       <div className="main-area">
-        <header className="topbar">
-          <div className="topbar-start">
-            <button type="button" className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button>
-            <h2 className="topbar-title">{routeTitle}</h2>
+        {criticalAlerts.length > 0 && (
+          <div className="critical-banner" role="alert">
+            <AlertTriangle size={18} aria-hidden="true" />
+            <span>{criticalAlerts.length} unacknowledged critical {criticalAlerts.length === 1 ? 'alert' : 'alerts'} need attention.</span>
+            <Link to="/alerts">Review alerts</Link>
           </div>
-          <div className="topbar-tools">
+        )}
+        <main className="page-content glass-screen">
+          <div className="page-controls" aria-label="Dashboard controls">
+            <button type="button" className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button>
             {tanks.isLoading ? <LoadingState label="Loading tanks" /> : tanks.isError ? <ErrorState error={tanks.error} /> : (
               <label className="inline small" aria-label="Selected tank">
                 <Waves size={16} aria-hidden="true" />
@@ -162,9 +162,7 @@ export function AppShell() {
             <Link to="/alerts" className="icon-button" aria-label={`${openAlerts.length} open alerts`}>
               <Bell size={18} /><span>{openAlerts.length}</span>
             </Link>
-            <button type="button" className="icon-button" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`} onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
+            <label className="theme-control"><Sun size={16} aria-hidden="true" /><span className="sr-only">Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value as ThemeChoice)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select><Moon size={16} aria-hidden="true" /></label>
             <div className="account-menu">
               <button type="button" className="small muted user-name" aria-haspopup="menu" aria-expanded={accountMenuOpen} aria-label={`Account menu for ${userName}`} onClick={() => setAccountMenuOpen((open) => !open)}><ChevronDown size={14} />{userName}</button>
               {accountMenuOpen && <div className="account-menu-popover" role="menu" aria-label="Account options">
@@ -174,15 +172,8 @@ export function AppShell() {
               </div>}
             </div>
           </div>
-        </header>
-        {criticalAlerts.length > 0 && (
-          <div className="critical-banner" role="alert">
-            <AlertTriangle size={18} aria-hidden="true" />
-            <span>{criticalAlerts.length} unacknowledged critical {criticalAlerts.length === 1 ? 'alert' : 'alerts'} need attention.</span>
-            <Link to="/alerts">Review alerts</Link>
-          </div>
-        )}
-        <main className="page-content"><Outlet /></main>
+          <div className="page-view"><Outlet /></div>
+        </main>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { MeasuredParameter, Reading, Threshold } from '@hydrosense/shared';
-import { DEFAULT_THRESHOLDS, formatParameter, getParameterStatus } from '@hydrosense/shared';
+import { DEFAULT_THRESHOLDS, formatManilaDateTime, formatParameter, getParameterStatus } from '@hydrosense/shared';
 import { StatusBadge } from './StatusBadge';
 
 const config: Record<MeasuredParameter, { title: string; unit: string }> = {
@@ -8,7 +8,7 @@ const config: Record<MeasuredParameter, { title: string; unit: string }> = {
   ph: { title: 'pH', unit: 'pH' },
 };
 
-export function ReadingCard({ parameter, reading, threshold }: { parameter: MeasuredParameter; reading: Reading; threshold?: Threshold }) {
+export function ReadingCard({ parameter, reading, threshold, showRangeMeter = false }: { parameter: MeasuredParameter; reading: Reading; threshold?: Threshold; showRangeMeter?: boolean }) {
   const value = parameter === 'do' ? reading.doMgL : reading[parameter];
   const configuredThreshold = threshold ?? DEFAULT_THRESHOLDS.find((item) => item.parameter === parameter);
   const status = getParameterStatus(parameter, value, configuredThreshold);
@@ -17,8 +17,14 @@ export function ReadingCard({ parameter, reading, threshold }: { parameter: Meas
     : configuredThreshold?.min !== undefined
       ? `Safe ≥${configuredThreshold.min}${parameter === 'temperature' ? '°C' : parameter === 'do' ? ' mg/L' : ' pH'}`
       : `Safe ≤${configuredThreshold?.max ?? '—'}`;
+  const min = configuredThreshold?.min;
+  const max = configuredThreshold?.max;
+  const scaleMin = min !== undefined && max !== undefined ? min : min !== undefined ? Math.min(0, min) : max !== undefined ? Math.min(0, max) : undefined;
+  const scaleMax = min !== undefined && max !== undefined ? max : min !== undefined ? Math.max(min * 2, min + 1) : max !== undefined ? Math.max(max, 1) : undefined;
+  const showScale = showRangeMeter && Number.isFinite(value) && scaleMin !== undefined && scaleMax !== undefined && scaleMax > scaleMin;
+  const position = showScale ? Math.max(0, Math.min(100, (value - scaleMin) / (scaleMax - scaleMin) * 100)) : 0;
   return (
-    <article className="card reading-card" aria-label={`${config[parameter].title} reading`}>
+    <article className={`card reading-card${showRangeMeter ? ' glass' : ''}`} aria-label={`${config[parameter].title} reading`}>
       <div className="inline" style={{ justifyContent: 'space-between' }}>
         <span className="reading-label">{config[parameter].title}</span>
         <StatusBadge level={status.level} label={status.label} />
@@ -28,6 +34,11 @@ export function ReadingCard({ parameter, reading, threshold }: { parameter: Meas
         <span>{status.distance}</span>
         <span>{safeRange}</span>
       </div>
+      {showScale && <div className="reading-scale">
+        <div className="reading-scale-track" aria-hidden="true"><span style={{ left: `${position}%` }} /></div>
+        <span>Display scale {scaleMin}–{scaleMax} {config[parameter].unit}{value < scaleMin || value > scaleMax ? ' · marker at scale edge' : ''}</span>
+      </div>}
+      {showRangeMeter && <p className="reading-updated">Updated {formatManilaDateTime(reading.timestamp)} PHT</p>}
     </article>
   );
 }

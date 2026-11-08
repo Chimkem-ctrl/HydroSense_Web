@@ -134,7 +134,7 @@ export default function TankOverviewPage() {
                   <p className="small muted">Updated {formatManilaDateTime(reading.timestamp)} PHT</p>
                 </>
               ) : <EmptyState>No reading available.</EmptyState>}
-              <div className="advisory-row">{advisories.map((item) => <AdvisoryChip key={item.kind} advisory={item} />)}</div>
+              <div className="advisory-row">{advisories.map((item) => <AdvisoryChip key={item.kind} advisory={item} tankId={tank.id} />)}</div>
               <span className={`badge ${alerts.length ? 'level-warning' : 'level-normal'}`}>{alerts.length} open alerts</span>
               {isAdmin && <button className="button button-danger" type="button" disabled={deleteTank.isPending || query.data.length <= 1} title={query.data.length <= 1 ? 'At least one tank must remain registered.' : undefined} onClick={() => removeTank(tank)}>Remove tank</button>}
             </article>
