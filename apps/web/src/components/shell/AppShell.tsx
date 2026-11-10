@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Beaker,
   Bell,
-  ChevronDown,
   ClipboardList,
   Database,
   FileDown,
@@ -17,7 +16,6 @@ import {
   Menu,
   Moon,
   Settings,
-  Sun,
   Users,
   Waves,
   UserRound,
@@ -32,8 +30,6 @@ import { signOut } from '../../services/authService';
 import { useSelectedTank } from '../../app/tank/TankContext';
 import { useLatestReading, useOpenAlerts, useTanks } from '../../app/data/hooks';
 import { ErrorState, LoadingState } from '../common/States';
-import { useTheme } from '../../app/ThemeContext';
-import type { ThemeChoice } from '../../app/ThemeContext';
 
 const icons: Record<string, LucideIcon> = {
   '/': LayoutDashboard,
@@ -68,7 +64,6 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [connection, setConnection] = useState(liveClient.getConnectionState());
-  const { choice: theme, setChoice: setTheme } = useTheme();
   const latestReadingIsRecent = Boolean(
     latestReading.data &&
     Date.now() - new Date(latestReading.data.timestamp).getTime() <= 15 * 60 * 1000,
@@ -162,12 +157,14 @@ export function AppShell() {
             <Link to="/alerts" className="icon-button" aria-label={`${openAlerts.length} open alerts`}>
               <Bell size={18} /><span>{openAlerts.length}</span>
             </Link>
-            <label className="theme-control"><Sun size={16} aria-hidden="true" /><span className="sr-only">Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value as ThemeChoice)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select><Moon size={16} aria-hidden="true" /></label>
             <div className="account-menu">
-              <button type="button" className="small muted user-name" aria-haspopup="menu" aria-expanded={accountMenuOpen} aria-label={`Account menu for ${userName}`} onClick={() => setAccountMenuOpen((open) => !open)}><ChevronDown size={14} />{userName}</button>
-              {accountMenuOpen && <div className="account-menu-popover" role="menu" aria-label="Account options">
+               <button type="button" className="icon-button" aria-haspopup="menu" aria-expanded={accountMenuOpen} aria-label={`Account menu for ${userName}`} title={userName} onClick={() => setAccountMenuOpen((open) => !open)}>
+                <span aria-hidden="true">{userName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span>
+                </button>              {accountMenuOpen && <div className="account-menu-popover" role="menu" aria-label="Account options">
+                
                 <Link to="/profile" role="menuitem"><UserRound size={15} />My profile</Link>
                 <Link to="/profile?tab=alerts" role="menuitem"><Bell size={15} />Alert preferences</Link>
+                <Link to="/profile?tab=appearance" role="menuitem"><Moon size={15} />Appearance</Link>
                 <Link to="/signin" role="menuitem" onClick={signOut}><LogOut size={15} />Sign out</Link>
               </div>}
             </div>

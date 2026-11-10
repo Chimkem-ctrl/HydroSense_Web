@@ -45,7 +45,6 @@ describe('themed dashboard routes', () => {
     expect(container.querySelector('.glass-shell .glass-screen')).toBeInTheDocument();
     expect(container.querySelector('main .page-controls')).toBeInTheDocument();
     expect(container.querySelector('.topbar')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Theme')).toHaveValue(theme);
     expect(document.documentElement).toHaveAttribute('data-theme', theme);
   });
 
