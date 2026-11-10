@@ -86,7 +86,7 @@ export default function SignUpPage() {
   return (
     <AuthLayout>
       <div className="auth-page page-enter">
-        <AuthHeader size={56} />
+        <AuthHeader size={52} showBrand />
         <GlassPanel className="auth-panel signup-panel operator-signup-panel">
           <h1>Request an account</h1>
           <p className="operator-signup-intro">

@@ -40,7 +40,7 @@ export default function SignInPage() {
   return (
     <AuthLayout>
       <div className="auth-page page-enter">
-        <AuthHeader />
+        <AuthHeader size={52} showBrand />
         <GlassPanel className="auth-panel signin-panel">
           <h1 className="glass-title">Welcome Back</h1>
           <h2 className="glass-subtitle">Sign in to your HydroSense account</h2>

@@ -77,4 +77,14 @@ describe('themed authentication routes', () => {
     expect(container.querySelector('.auth-background .glass-panel')).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute('data-theme', theme);
   });
+
+  it.each(['/signin', '/signup'])('shows the mobile-style brand on %s', async (path) => {
+    window.localStorage.removeItem('hydrosense.auth.session.v2');
+    window.history.replaceState({}, '', path);
+    const { container } = render(<App />);
+    const header = container.querySelector('.auth-header--branded');
+    expect(await screen.findByText('WATER QUALITY MONITORING')).toBeInTheDocument();
+    expect(header).toHaveTextContent('HydroSense');
+    expect(header?.querySelector('img')).toHaveAttribute('src', '/assets/logos/hydrosense-logo.png');
+  });
 });
