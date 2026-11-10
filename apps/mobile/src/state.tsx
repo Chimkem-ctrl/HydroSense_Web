@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Platform } from 'react-native';
 import type { Role, Tank } from '@hydrosense/shared';
 import { api } from './services/client';
 import { DATA_MODE, setMobileAccessToken } from './services/client';
@@ -46,7 +47,7 @@ function isStoredSession(value: unknown): value is { version: 1; mode: 'mock' | 
 async function clearStoredSession() {
   const results = await Promise.allSettled([
     AsyncStorage.removeItem(SESSION_KEY),
-    SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+    ...(Platform.OS === 'web' ? [] : [SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)]),
   ]);
   const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
   if (failures.length) {
@@ -62,6 +63,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
     let active = true;
     async function restoreSession() {
       try {
+        if (Platform.OS === 'web') {
+          await clearStoredSession();
+          await clearMobileQueryCache();
+          return;
+        }
         const [savedUser, savedToken] = await Promise.all([
           AsyncStorage.getItem(SESSION_KEY),
           SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
@@ -107,6 +113,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
     if (!isMobileUser(nextUser)) throw new Error('The sign-in user data is invalid.');
     if (DATA_MODE === 'api' && !accessToken?.trim()) throw new Error('The API did not provide a secure access token.');
     await clearMobileQueryCache();
+    if (Platform.OS === 'web') {
+      setMobileAccessToken(accessToken ?? null);
+      setUser(nextUser);
+      return;
+    }
     try {
       if (accessToken) await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
       else await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);

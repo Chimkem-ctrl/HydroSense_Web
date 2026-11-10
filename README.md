@@ -58,13 +58,14 @@ Copy `.env.example` to `.env.local` and set values as needed:
 | `VITE_PILOT_UNLOCK_ALL` | enabled unless `false` | Keep all tier features enabled for the pilot. Set to `false` to exercise tier gates. |
 | `VITE_ADMIN_EMAIL` | `admin@hydrosense.demo` | Demo-only administrator email for local mock authentication. |
 | `VITE_ADMIN_PASSWORD` | `AdminDemo!2026` | Demo-only administrator password for local mock authentication. Never use real credentials here. |
-| `EXPO_PUBLIC_DATA_MODE` | `mock` | Mobile data adapter: `mock` or `api`. |
-| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Mobile HTTP API URL. Use the Android emulator's host-reachable address when running an API on the development computer. |
-| `EXPO_PUBLIC_WS_URL` | Derived from API URL | Mobile WebSocket stream URL. Set in `apps/mobile/.env.local`. |
+| `EXPO_PUBLIC_DATA_MODE` | `api` | Mobile data adapter: `mock` or `api`. |
+| `EXPO_PUBLIC_API_URL` | Deployed Supabase API | Mobile HTTP API root, including `/functions/v1/api` for the Supabase function. Use a device-reachable address for local development. `EXPO_PUBLIC_API_BASE_URL` is a legacy fallback. |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Web project's publishable key | Publishable key for mobile API requests; set this when using a different backend. Never use a service-role key. |
+| `EXPO_PUBLIC_WS_URL` | unset | Optional compatible mobile WebSocket stream URL. Set in `apps/mobile/.env.local`; API data is otherwise refreshed by polling. |
 
 Sign-up requests an Operator or Manager role and remains pending until approved by the administrator. The role is a request, not a grant. In mock mode, account records and a session containing only the user ID are stored in browser localStorage under v2 keys. Authentication remains demo-only even when `VITE_DATA_MODE=api` selects the dashboard API adapter; connect a real authentication backend before deployment. Do not use real credentials or sensitive personal information, and enforce identity, approval and every authorization decision in the backend.
 
-The mobile app's mock sign-in is explicitly labeled demo-only and enters as an Operator; API mode signs in through `/api/v1/auth/signin` and stores the backend's bearer token with Expo SecureStore. Mobile query data is cached for up to 24 hours for offline viewing, and is cleared on sign-out or account changes. Tank API requests run only after session restoration and authentication; tank-loading errors are surfaced in the tank selector. Alert notification taps use the `hydrosense://alerts/{alertId}` deep link. Local notification handling and permission requests are wired; delivery/push-token registration must be connected by the production backend.
+The mobile app defaults to the shared backend for sign-in and account requests; mock sign-in is explicitly demo-only and offers all three roles. API mode signs in through `/v1/auth/signin` relative to the configured API root and stores the backend's bearer token with Expo SecureStore on native devices. Mobile query data is cached for up to 24 hours for offline viewing, and is cleared on sign-out or account changes. Tank API requests run only after session restoration and authentication; tank-loading errors are surfaced in the tank selector. Alert notification taps use the `hydrosense://alerts/{alertId}` deep link. Local notification handling and permission requests are wired; delivery/push-token registration must be connected by the production backend. See [mobile setup and limitations](apps/mobile/README.md).
 
 ## Data and live updates
 

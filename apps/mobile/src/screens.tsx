@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart } from 'react-native-gifted-charts';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -8,20 +9,24 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ACTIVITY_OPERATION_TYPES,
-  DEFAULT_THRESHOLDS,
   formatManilaDateTime,
+  formatParameter,
   getParameterStatus,
   getReadingStatuses,
   getRaisingDay,
   toCsv,
+  validateAcknowledgeNote,
   validateActivityLog,
   validateThresholds,
 } from '@hydrosense/shared';
-import type { ActivityLog, AlertItem, MeasuredParameter, Threshold } from '@hydrosense/shared';
+import type { ActivityLog, AlertItem, MeasuredParameter, Reading, Threshold } from '@hydrosense/shared';
 import type { MainTabParamList, RootStackParamList } from './navigation';
-import { DATA_MODE, API_BASE_URL, api } from './services/client';
+import { DATA_MODE, api } from './services/client';
+import { canAccess } from './access';
 import { useSession, useTankSelection } from './state';
-import { Button, Card, colors, DataRow, Page, StateMessage, Title, ui } from './components/ui';
+import { Button, Card, createFormStyles, DataRow, Page, StateMessage, Title } from './components/ui';
+import { useTheme } from './theme';
+import type { ThemeChoice } from './theme';
 
 type Props<T extends keyof MainTabParamList> = BottomTabScreenProps<MainTabParamList, T>;
 type RootProps<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;
@@ -34,79 +39,55 @@ function Field({ label, value, onChangeText, placeholder, keyboardType = 'defaul
   keyboardType?: 'default' | 'numeric' | 'email-address';
   secureTextEntry?: boolean;
 }) {
-  return <View style={ui.formField}><Text style={ui.label}>{label}</Text><TextInput style={ui.input} value={value} onChangeText={onChangeText} placeholder={placeholder} keyboardType={keyboardType} secureTextEntry={secureTextEntry} autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'} /></View>;
+  const { colors } = useTheme();
+  const ui = createFormStyles(colors);
+  return <View style={ui.formField}><Text style={ui.label}>{label}</Text><TextInput style={ui.input} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} keyboardType={keyboardType} secureTextEntry={secureTextEntry} autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'} /></View>;
 }
 
 function TankPicker() {
+  const { colors } = useTheme();
   const { tanks, tankId, setTankId, isLoading, error, refetch } = useTankSelection();
   if (isLoading) return <StateMessage message="Loading tanks…" loading />;
   if (error) return <Card><StateMessage message={`Could not load tanks: ${error.message}`} /><Button label="Retry tank list" onPress={refetch} secondary /></Card>;
   if (tanks.length === 0) return <StateMessage message="No tanks are available for this account." />;
-  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{tanks.map((tank) => <Pressable key={tank.id} onPress={() => setTankId(tank.id)} style={{ borderRadius: 18, borderWidth: 1, borderColor: tank.id === tankId ? colors.teal : colors.border, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: tank.id === tankId ? '#e2f2ef' : 'white' }}><Text style={{ color: colors.ink, fontWeight: '700' }}>{tank.name}</Text></Pressable>)}</View>;
+  return <View accessibilityLabel="Select tank" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{tanks.map((tank) => <Pressable accessibilityRole="button" accessibilityState={{ selected: tank.id === tankId }} key={tank.id} onPress={() => setTankId(tank.id)} style={{ minHeight: 44, justifyContent: 'center', borderRadius: 22, borderWidth: 1, borderColor: tank.id === tankId ? colors.teal : colors.border, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: tank.id === tankId ? colors.selected : colors.surface }}><Text style={{ color: tank.id === tankId ? colors.teal : colors.ink, fontWeight: '700' }}>{tank.name}</Text></Pressable>)}</View>;
 }
 
-export function LoginScreen() {
-  const { signIn } = useSession();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function signInWithApi() {
-    setBusy(true);
-    try {
-      const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/api/v1/auth/signin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      const responseBody = await response.text();
-      let result: unknown;
-      try {
-        result = JSON.parse(responseBody);
-      } catch {
-        if (!response.ok) throw new Error('Sign-in failed. Check your credentials and account approval.');
-        throw new Error('The sign-in response is invalid.');
-      }
-      if (typeof result !== 'object' || result === null) {
-        throw new Error('The sign-in response is invalid.');
-      }
-      if ('status' in result && result.status === 'pending') throw new Error('This account is awaiting administrator approval.');
-      if (!response.ok) throw new Error('Sign-in failed. Check your credentials and account approval.');
-      if (!('user' in result) || typeof result.user !== 'object' || result.user === null) throw new Error('The sign-in response is invalid.');
-      const authResult = result as { token?: unknown; accessToken?: unknown; user: unknown };
-      const user = authResult.user as { id?: unknown; firstName?: unknown; lastName?: unknown; name?: unknown; role?: unknown };
-      if (typeof user.id !== 'string' || user.id.trim().length === 0) throw new Error('The sign-in response is missing a valid user ID.');
-      if (user.role !== 'operator' && user.role !== 'manager' && user.role !== 'admin') throw new Error('This account is not approved for access.');
-      const name = typeof user.name === 'string' ? user.name : `${String(user.firstName ?? '')} ${String(user.lastName ?? '')}`.trim();
-      const token = typeof authResult.accessToken === 'string' ? authResult.accessToken : typeof authResult.token === 'string' ? authResult.token : undefined;
-      await signIn({ id: user.id, name: name || email, role: user.role }, token);
-    } catch (error) {
-      Alert.alert('Unable to sign in', error instanceof Error ? error.message : 'An unexpected sign-in error occurred.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return <Page>
-    <Title detail="Water quality monitoring and alerts for hatchery operations">HydroSense Mobile</Title>
-    <Card title="Sign in">
-      {DATA_MODE === 'mock' ? <>
-        <Text style={{ color: colors.muted, lineHeight: 20 }}>Demo-only access uses sample data. This does not authenticate with a backend.</Text>
-        <Button label="Continue as demo operator" onPress={() => void signIn({ id: 'demo-operator', name: 'Demo Operator', role: 'operator' }).catch((error: unknown) => Alert.alert('Unable to sign in', error instanceof Error ? error.message : 'An unexpected sign-in error occurred.'))} />
-      </> : <>
-        <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="name@example.com" />
-        <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" />
-        <Button label={busy ? 'Signing in…' : 'Sign in'} disabled={busy || !email || !password} onPress={() => void signInWithApi()} />
-      </>}
-    </Card>
-    <Text style={{ color: colors.muted, fontSize: 12 }}>Monitoring and alert system only. No device controls are available.</Text>
-  </Page>;
+function ReadingCard({ parameter, reading, threshold }: { parameter: MeasuredParameter; reading: Reading; threshold?: Threshold }) {
+  const { colors } = useTheme();
+  const value = parameter === 'do' ? reading.doMgL : reading[parameter];
+  const status = getParameterStatus(parameter, value, threshold);
+  const label = parameter === 'temperature' ? 'Temperature' : parameter === 'do' ? 'Dissolved oxygen' : 'pH';
+  const unit = parameter === 'temperature' ? '°C' : parameter === 'do' ? 'mg/L' : 'pH';
+  const min = threshold?.min;
+  const max = threshold?.max;
+  const safe = min !== undefined && max !== undefined ? `${min}–${max} ${unit}` : min !== undefined ? `≥${min} ${unit}` : max !== undefined ? `≤${max} ${unit}` : 'Not configured';
+  const scaleMin = min !== undefined && max !== undefined ? min : min !== undefined ? Math.min(0, min) : max !== undefined ? Math.min(0, max) : undefined;
+  const scaleMax = min !== undefined && max !== undefined ? max : min !== undefined ? Math.max(min * 2, min + 1) : max !== undefined ? Math.max(max, 1) : undefined;
+  const position = scaleMin !== undefined && scaleMax !== undefined && scaleMax > scaleMin
+    ? Math.max(0, Math.min(100, (value - scaleMin) / (scaleMax - scaleMin) * 100)) : null;
+  const statusColor = status.level === 'normal' ? colors.normal : status.level === 'warning' ? colors.warning : colors.critical;
+  return <Card>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+      <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '700', flexShrink: 1 }}>{label}</Text>
+      <Text style={{ color: statusColor, borderColor: statusColor, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, fontSize: 12, fontWeight: '700' }}>{status.label}</Text>
+    </View>
+    <Text style={{ color: colors.ink, fontSize: 38, fontWeight: '400' }}>{formatParameter(parameter, value)}</Text>
+    <Text style={{ color: colors.muted, lineHeight: 20 }}>{status.distance}{'\n'}Safe {safe}</Text>
+    {position !== null && <View style={{ gap: 8, marginTop: 4 }}>
+      <LinearGradient colors={['#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 8, borderRadius: 8, marginHorizontal: 7 }}>
+        <View style={{ position: 'absolute', left: `${position}%`, top: -4, marginLeft: -7, height: 16, width: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.ink, backgroundColor: colors.surface }} />
+      </LinearGradient>
+      <Text style={{ color: colors.muted, fontSize: 12 }}>Display scale {scaleMin}–{scaleMax} {unit}{scaleMin !== undefined && scaleMax !== undefined && (value < scaleMin || value > scaleMax) ? ' · marker at scale edge' : ''}</Text>
+    </View>}
+    <Text style={{ color: colors.muted, fontSize: 12 }}>Updated {formatManilaDateTime(reading.timestamp)} PHT</Text>
+  </Card>;
 }
 
 export function HomeScreen({ navigation }: Props<'Home'>) {
+  const { colors } = useTheme();
+  const { user } = useSession();
+  const { width } = useWindowDimensions();
   const { tankId, tanks } = useTankSelection();
   const { data: reading, isLoading, isError, refetch } = useQuery({ queryKey: ['latest-reading', tankId], queryFn: () => api.getLatestReading(tankId), enabled: Boolean(tankId) });
   const thresholds = useQuery({ queryKey: ['thresholds'], queryFn: () => api.listThresholds() });
@@ -114,21 +95,31 @@ export function HomeScreen({ navigation }: Props<'Home'>) {
   const devices = useQuery({ queryKey: ['device-statuses'], queryFn: () => api.listDeviceStatuses() });
   const alerts = useQuery({ queryKey: ['alerts', tankId], queryFn: () => api.listAlerts(tankId), enabled: Boolean(tankId) });
   const tank = tanks.find((item) => item.id === tankId);
-  const statuses = reading ? getReadingStatuses(reading, thresholds.data ?? DEFAULT_THRESHOLDS) : null;
+  const statuses = reading && thresholds.data ? getReadingStatuses(reading, thresholds.data) : null;
   const device = devices.data?.find((item) => item.deviceId === tank?.deviceId);
   const openCount = alerts.data?.filter((item) => item.status !== 'resolved').length ?? 0;
   return <Page>
-    <Title detail="Live water-quality status">Home</Title>
+    <View style={{ gap: 5 }}><Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.4 }}>WATER QUALITY MONITORING</Text><Text style={{ color: colors.ink, fontSize: 28, fontWeight: '500' }}>Welcome, {user?.name}.</Text></View>
+    <Title detail={tank ? `${tank.name} · ${tank.site} · rearing day ${getRaisingDay(tank.rearingStartDate)}/21` : 'Live water-quality status'}>Live monitor</Title>
     <TankPicker />
-    {isLoading ? <StateMessage message="Loading latest readings…" loading /> : isError ? <Card><StateMessage message="Could not load readings." /><Button label="Retry" onPress={() => void refetch()} secondary /></Card> : reading && statuses ? <Card title={tank?.name ?? 'Selected tank'} action={<Text style={{ color: device?.online ? colors.teal : colors.critical, fontWeight: '800' }}>{device?.online ? 'ONLINE' : 'OFFLINE'}</Text>}>
-      <Text style={{ color: colors.muted }}>Rearing day {tank ? getRaisingDay(tank.rearingStartDate) : '—'} · Updated {formatManilaDateTime(reading.timestamp)} PHT</Text>
-      <DataRow label="Temperature" value={`${reading.temperature.toFixed(1)} °C`} detail={`${statuses.temperature.label} · ${statuses.temperature.distance}`} />
-      <DataRow label="Dissolved oxygen" value={`${reading.doMgL.toFixed(1)} mg/L`} detail={`${statuses.do.label} · ${statuses.do.distance}`} />
-      <DataRow label="pH" value={reading.ph.toFixed(2)} detail={`${statuses.ph.label} · ${statuses.ph.distance}`} />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{(advisories.data ?? []).map((item) => <Text key={item.kind} style={{ color: colors.ink, backgroundColor: '#e8f4f2', padding: 8, borderRadius: 8, fontWeight: '700' }}>{item.kind} advisory: {item.level}</Text>)}</View>
-      <Text style={{ color: colors.muted }}>Battery {device?.batteryPct ?? '—'}% · {device?.powerSource ?? 'Unknown'} · {openCount} active alerts</Text>
-      <Button label="Calibration helper" secondary onPress={() => navigation.getParent()?.navigate('Calibration')} />
-    </Card> : <StateMessage message="No reading is available for this tank." />}
+    {isLoading || thresholds.isLoading ? <StateMessage message="Loading latest readings and thresholds…" loading /> : isError || thresholds.isError ? <Card><StateMessage message={`Could not load readings or thresholds: ${(thresholds.error ?? null)?.message ?? 'Check your connection.'}`} /><Button label="Retry" onPress={() => { void refetch(); void thresholds.refetch(); }} secondary /></Card> : reading && statuses ? <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
+        {(['temperature', 'do', 'ph'] as const).map((parameter) => <View key={parameter} style={{ width: width >= 950 ? '32%' : width >= 600 ? '48%' : '100%' }}><ReadingCard parameter={parameter} reading={reading} threshold={thresholds.data?.find((item) => item.parameter === parameter)} /></View>)}
+      </View>
+      <Card title="Water-quality advisories">
+        <Text style={{ color: colors.muted, lineHeight: 20 }}>Salinity and ammonia are not measured by the sensors. These rule-based advisories are not readings.</Text>
+        {advisories.isLoading ? <StateMessage message="Loading advisories…" loading /> : advisories.isError ? <StateMessage message="Could not load advisories." /> : (advisories.data ?? []).length === 0 ? <StateMessage message="No advisories are available for this tank." /> : advisories.data?.map((item) => <DataRow key={item.kind} label={`${item.kind === 'salinity' ? 'Salinity' : 'Ammonia'} risk`} value={item.level.toUpperCase()} />)}
+      </Card>
+      <Card title="Last update"><Text style={{ color: colors.ink, fontWeight: '700' }}>{formatManilaDateTime(reading.timestamp)} PHT</Text><Text style={{ color: colors.muted }}>Readings are sampled every 3 hours.</Text></Card>
+      <Card title="Device connection">
+        {devices.isLoading ? <StateMessage message="Loading device status…" loading /> : devices.isError ? <StateMessage message="Could not load device status." /> : !device ? <StateMessage message="No device is registered for this tank." /> : <>
+          <DataRow label="Connection" value={device.online ? 'Online' : 'Offline'} />
+          <DataRow label="Battery" value={device.batteryPct > 0 ? `${device.batteryPct}%` : 'Unavailable'} detail={`Power source: ${device.powerSource}`} />
+          {alerts.isError ? <StateMessage message="Could not load alerts." /> : <DataRow label="Active alerts" value={alerts.isLoading ? 'Loading…' : `${openCount}`} />}
+        </>}
+        <Button label="Calibration helper" secondary onPress={() => navigation.getParent()?.navigate('Calibration')} />
+      </Card>
+    </> : <StateMessage message="No reading is available for this tank." />}
     <Button label="Record manual water test" onPress={() => navigation.getParent()?.navigate('FieldEntry')} secondary />
   </Page>;
 }
@@ -138,6 +129,7 @@ function alertTitle(alert: AlertItem) {
 }
 
 export function AlertsScreen({ navigation }: Props<'Alerts'>) {
+  const { colors } = useTheme();
   const { tankId } = useTankSelection();
   const query = useQuery({ queryKey: ['alerts', tankId], queryFn: () => api.listAlerts(tankId), enabled: Boolean(tankId) });
   const rows = [...(query.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -155,6 +147,7 @@ export function AlertsScreen({ navigation }: Props<'Alerts'>) {
 }
 
 export function AlertDetailScreen({ route }: RootProps<'AlertDetail'>) {
+  const { colors } = useTheme();
   const { user } = useSession();
   const queryClient = useQueryClient();
   const alertQuery = useQuery({ queryKey: ['alert-detail', route.params.alertId], queryFn: async () => (await api.listAlerts()).find((item) => item.id === route.params.alertId) ?? null });
@@ -162,16 +155,15 @@ export function AlertDetailScreen({ route }: RootProps<'AlertDetail'>) {
   const [note, setNote] = useState('');
   const mutation = useMutation({
     mutationFn: async (status: 'acknowledge' | 'resolve') => {
-      if (note.trim().length < 4) throw new Error('Add a response note with at least 4 characters.');
+      const issues = validateAcknowledgeNote(note);
+      if (issues.length) throw new Error(issues[0].message);
       const input = { note: note.trim(), user: user?.name ?? 'Mobile user' };
       if (status === 'acknowledge') return api.acknowledgeAlert(route.params.alertId, input);
-      const alert = (await api.listAlerts()).find((item) => item.id === route.params.alertId);
-      if (!alert) throw new Error('The alert could not be found.');
       const resolved = await api.resolveAlert(route.params.alertId, input);
       await api.createActivityLog({
-        tankId: alert.tankId,
+        tankId: resolved.tankId,
         kind: 'ALERT RESOLUTION',
-        type: `${alert.parameter} alert resolved`,
+        type: `Resolved: ${resolved.parameter}`,
         operator: input.user,
         notes: input.note.trim(),
       });
@@ -199,27 +191,29 @@ export function AlertDetailScreen({ route }: RootProps<'AlertDetail'>) {
       {alert.status !== 'resolved' && <Button label="Resolve alert" disabled={mutation.isPending} onPress={() => mutation.mutate('resolve')} />}
       {mutation.isError && <Text style={{ color: colors.critical }}>{mutation.error.message}</Text>}
       <Text style={{ color: colors.ink, fontWeight: '800', marginTop: 8 }}>Response history</Text>
-      {responses.isLoading ? <StateMessage message="Loading responses…" loading /> : (responses.data ?? []).length === 0 ? <Text style={{ color: colors.muted }}>No responses recorded.</Text> : responses.data?.map((response) => <Text key={response.id} style={{ color: colors.muted }}>{response.status} · {response.createdBy} · {formatManilaDateTime(response.createdAt)} PHT · {response.note}</Text>)}
+      {responses.isLoading ? <StateMessage message="Loading responses…" loading /> : responses.isError ? <><StateMessage message={`Could not load responses: ${responses.error.message}`} /><Button label="Retry responses" secondary onPress={() => void responses.refetch()} /></> : (responses.data ?? []).length === 0 ? <Text style={{ color: colors.muted }}>No responses recorded.</Text> : responses.data?.map((response) => <Text key={response.id} style={{ color: colors.muted }}>{response.status} · {response.createdBy} · {formatManilaDateTime(response.createdAt)} PHT · {response.note}</Text>)}
     </Card>}
   </Page>;
 }
 
 export function TrendsScreen() {
+  const { colors } = useTheme();
   const { tankId } = useTankSelection();
   const from = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
   const readings = useQuery({ queryKey: ['mobile-trends', tankId], queryFn: () => api.listReadings({ tankId, from }), enabled: Boolean(tankId) });
-  const data = (readings.data ?? []).map((row, index) => ({ value: row.doMgL, label: index % 2 === 0 ? new Date(row.timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '' }));
+  const data = [...(readings.data ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map((row, index) => ({ value: row.doMgL, label: index % 2 === 0 ? new Date(row.timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '' }));
   return <Page>
     <Title detail="Latest 24 hours · 3-hour sampling cadence">Trends</Title>
     <TankPicker />
     {readings.isLoading ? <StateMessage message="Loading trend data…" loading /> : readings.isError ? <StateMessage message="Could not load trends." /> : data.length < 2 ? <StateMessage message="Not enough readings to draw a trend." /> : <Card title="Dissolved oxygen · mg/L">
-      <LineChart data={data} width={300} height={180} spacing={50} color={colors.teal} thickness={3} dataPointsColor={colors.teal} yAxisTextStyle={{ color: colors.muted }} xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }} />
-      <Text style={{ color: colors.muted }}>Safe minimum: 4 mg/L. Trend view is informational; review each point alongside the alert history.</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator><LineChart data={data} width={300} height={180} spacing={50} color={colors.teal} thickness={3} dataPointsColor={colors.teal} yAxisTextStyle={{ color: colors.muted }} xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }} /></ScrollView>
+      <Text style={{ color: colors.muted }}>Trend view is informational; review each point alongside configured thresholds and alert history.</Text>
     </Card>}
   </Page>;
 }
 
 export function HistoryScreen() {
+  const { colors } = useTheme();
   const { tankId } = useTankSelection();
   const readings = useQuery({ queryKey: ['mobile-history', tankId], queryFn: () => api.listReadings({ tankId }), enabled: Boolean(tankId) });
   const rows = [...(readings.data ?? [])].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 100);
@@ -252,13 +246,62 @@ export function StatusScreen() {
   </Page>;
 }
 
+export function ManagerReviewScreen() {
+  const { user } = useSession();
+  const allowed = canAccess(user?.role ?? null, 'validation');
+  const rows = useQuery({ queryKey: ['validation'], queryFn: () => api.listValidationRows(), enabled: allowed });
+  const tolerances = useQuery({ queryKey: ['validation-tolerances'], queryFn: () => api.getValidationTolerances(), enabled: allowed });
+  if (!allowed) return <Page><StateMessage message="You do not have access to validation." /></Page>;
+  return <Page>
+    <Title detail="Compare sensor averages with reference measurements">Manager review</Title>
+    {rows.isLoading || tolerances.isLoading ? <StateMessage message="Loading validation…" loading /> :
+      rows.isError || tolerances.isError ? <Card><StateMessage message={`Could not load validation: ${(rows.error ?? tolerances.error)?.message ?? 'Unknown error'}`} /><Button label="Retry" secondary onPress={() => { void rows.refetch(); void tolerances.refetch(); }} /></Card> :
+      !rows.data?.length || !tolerances.data ? <StateMessage message="No validation comparisons are available." /> :
+      rows.data.map((row, index) => {
+        const key = row.parameter.toLowerCase().includes('temp') ? 'temperature' : row.parameter.toLowerCase().includes('ph') ? 'ph' : 'do';
+        const tolerance = tolerances.data[key];
+        const difference = row.hydrosenseMean - row.reference;
+        const percent = row.reference === 0 ? 0 : Number((Math.abs(difference) / Math.abs(row.reference) * 100).toFixed(2));
+        return <Card key={`${row.parameter}-${index}`} title={row.parameter}>
+          <DataRow label="Sensor mean" value={`${row.hydrosenseMean}`} />
+          <DataRow label="Reference" value={`${row.reference}`} />
+          <DataRow label="Error" value={`${Number(difference.toFixed(3))} (${percent}%)`} />
+          <DataRow label="Tolerance" value={`±${tolerance}`} />
+          <DataRow label="Result" value={Math.abs(difference) <= tolerance ? 'Pass' : 'Fail'} />
+        </Card>;
+      })}
+  </Page>;
+}
+
+export function AdminReviewScreen({ navigation }: Props<'Review'>) {
+  const { colors } = useTheme();
+  const { user } = useSession();
+  const allowed = canAccess(user?.role ?? null, 'admin');
+  const users = useQuery({ queryKey: ['admin-users'], queryFn: () => api.listUsers(), enabled: allowed });
+  const logs = useQuery({ queryKey: ['audit-logs'], queryFn: () => api.listAuditLogs(), enabled: allowed });
+  if (!allowed) return <Page><StateMessage message="You do not have access to administration." /></Page>;
+  return <Page>
+    <Title detail="Read-only account and audit overview">Admin overview</Title>
+    <Button label="Review validation comparisons" secondary onPress={() => navigation.getParent()?.navigate('ValidationReview')} />
+    <Card title="Accounts">
+      {users.isLoading ? <StateMessage message="Loading accounts…" loading /> : users.isError ? <><StateMessage message={`Could not load accounts: ${users.error.message}`} /><Button label="Retry accounts" secondary onPress={() => void users.refetch()} /></> : !users.data?.length ? <StateMessage message="No accounts found." /> : users.data.map((account) => <DataRow key={account.id} label={account.name || account.email} value={account.role ?? 'Unassigned'} detail={account.email} />)}
+    </Card>
+    <Card title="Recent audit events">
+      {logs.isLoading ? <StateMessage message="Loading audit events…" loading /> : logs.isError ? <><StateMessage message={`Could not load audit events: ${logs.error.message}`} /><Button label="Retry events" secondary onPress={() => void logs.refetch()} /></> : !logs.data?.length ? <StateMessage message="No audit events found." /> : logs.data.slice(0, 20).map((log) => <View key={log.id} style={{ gap: 4, paddingVertical: 8 }}><Text style={{ color: colors.ink, fontWeight: '700' }}>{log.action} · {log.user}</Text><Text style={{ color: colors.muted }}>{formatManilaDateTime(log.timestamp)} PHT · {log.detail}</Text></View>)}
+    </Card>
+  </Page>;
+}
+
 export function SettingsScreen({ navigation }: Props<'Settings'>) {
+  const { colors } = useTheme();
+  const ui = createFormStyles(colors);
   const { user, signOut } = useSession();
   const { tankId } = useTankSelection();
-  const { data: thresholds = [] } = useQuery({ queryKey: ['thresholds'], queryFn: () => api.listThresholds() });
+  const thresholdsQuery = useQuery({ queryKey: ['thresholds'], queryFn: () => api.listThresholds() });
+  const thresholds = thresholdsQuery.data ?? [];
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Threshold[]>([]);
-  const canEdit = user?.role === 'manager' || user?.role === 'admin';
+  const canEdit = canAccess(user?.role ?? null, 'thresholds');
   const mutation = useMutation({
     mutationFn: () => {
       const values: Record<MeasuredParameter, { min?: number; max?: number }> = {
@@ -272,6 +315,7 @@ export function SettingsScreen({ navigation }: Props<'Settings'>) {
       return api.updateThresholds(drafts, user?.name ?? 'Mobile manager');
     },
     onSuccess: async () => {
+      setDrafts([]);
       await queryClient.invalidateQueries({ queryKey: ['thresholds'] });
       Alert.alert('Saved', 'Threshold updates are now active.');
     },
@@ -285,31 +329,60 @@ export function SettingsScreen({ navigation }: Props<'Settings'>) {
   return <Page>
     <Title detail={`${user?.name ?? 'User'} · ${user?.role ?? ''}`}>Settings</Title>
     <TankPicker />
+    <Card title="Appearance">
+      <Button label="Choose theme" secondary onPress={() => navigation.getParent()?.navigate('Appearance')} />
+    </Card>
     <Card title="Field tools">
       <Button label="Calibration helper" secondary onPress={() => navigation.getParent()?.navigate('Calibration')} />
       <Button label="Manual salinity / ammonia entry" secondary onPress={() => navigation.getParent()?.navigate('FieldEntry')} />
       <Button label="Export report" secondary onPress={() => navigation.getParent()?.navigate('Export')} />
     </Card>
     {canEdit && <Card title="Thresholds">
+      {thresholdsQuery.isLoading ? <StateMessage message="Loading thresholds…" loading /> : thresholdsQuery.isError ? <><StateMessage message={`Could not load thresholds: ${thresholdsQuery.error.message}`} /><Button label="Retry thresholds" secondary onPress={() => void thresholdsQuery.refetch()} /></> : <>
       {(['temperature', 'do', 'ph'] as const).map((parameter) => {
         const row = (drafts.length ? drafts : thresholds).find((item) => item.parameter === parameter);
         return <View key={parameter} style={{ gap: 6, marginBottom: 8 }}>
           <Text style={ui.label}>{parameter === 'do' ? 'Dissolved oxygen' : parameter}</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput style={[ui.input, { flex: 1 }]} keyboardType="numeric" placeholder="Minimum" value={row?.min === undefined ? '' : String(row.min)} onChangeText={(value) => updateThreshold(parameter, 'min', value)} />
-            <TextInput style={[ui.input, { flex: 1 }]} keyboardType="numeric" placeholder="Maximum" value={row?.max === undefined ? '' : String(row.max)} onChangeText={(value) => updateThreshold(parameter, 'max', value)} />
+            <TextInput style={[ui.input, { flex: 1 }]} keyboardType="numeric" placeholder="Minimum" placeholderTextColor={colors.muted} value={row?.min === undefined ? '' : String(row.min)} onChangeText={(value) => updateThreshold(parameter, 'min', value)} />
+            <TextInput style={[ui.input, { flex: 1 }]} keyboardType="numeric" placeholder="Maximum" placeholderTextColor={colors.muted} value={row?.max === undefined ? '' : String(row.max)} onChangeText={(value) => updateThreshold(parameter, 'max', value)} />
           </View>
         </View>;
       })}
       <Button label="Save thresholds" disabled={mutation.isPending || !drafts.length} onPress={() => mutation.mutate()} />
       {mutation.isError && <Text style={{ color: colors.critical }}>{mutation.error.message}</Text>}
+      </>}
     </Card>}
     <Button label="Sign out" secondary onPress={() => void signOut().catch((error: unknown) => Alert.alert('Sign-out cleanup issue', error instanceof Error ? error.message : 'Some local data could not be cleared.'))} />
     <Text style={{ color: colors.muted, fontSize: 12 }}>Mode: {DATA_MODE} · Tank: {tankId}</Text>
   </Page>;
 }
 
+const themeOptions: { value: ThemeChoice; label: string; hint: string }[] = [
+  { value: 'system', label: 'System', hint: 'Match your device setting' },
+  { value: 'light', label: 'Light', hint: 'Light background' },
+  { value: 'dark', label: 'Dark', hint: 'Dark background, easier to read at night' },
+];
+
+export function AppearanceScreen() {
+  const { choice, setChoice, colors, error } = useTheme();
+  return <Page>
+    <Title detail="Choose how HydroSense looks on this device">Appearance</Title>
+    <Card title="Theme">
+      {themeOptions.map((option) => <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ checked: choice === option.value }} onPress={() => void setChoice(option.value)}
+        style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: choice === option.value ? colors.selected : colors.surface, borderWidth: 1, borderColor: choice === option.value ? colors.teal : colors.border }}>
+        <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: choice === option.value ? colors.teal : colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+          {choice === option.value && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.teal }} />}
+        </View>
+        <View style={{ flex: 1, gap: 3 }}><Text style={{ color: colors.ink, fontWeight: '700' }}>{option.label}</Text><Text style={{ color: colors.muted, fontSize: 13 }}>{option.hint}</Text></View>
+      </Pressable>)}
+      {error && <Text accessibilityRole="alert" style={{ color: colors.critical }}>{error}</Text>}
+    </Card>
+  </Page>;
+}
+
 export function CalibrationScreen() {
+  const { colors } = useTheme();
   const { tankId } = useTankSelection();
   const { user } = useSession();
   const queryClient = useQueryClient();
@@ -319,7 +392,7 @@ export function CalibrationScreen() {
   const [after, setAfter] = useState('');
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!tankId || !standard.trim() || !Number.isFinite(Number(before)) || !Number.isFinite(Number(after))) throw new Error('Choose a tank and enter a standard plus before/after readings.');
+      if (!tankId || !standard.trim() || !before.trim() || !after.trim() || !Number.isFinite(Number(before)) || !Number.isFinite(Number(after))) throw new Error('Choose a tank and enter a standard plus before/after readings.');
       const date = new Date();
       const nextDue = new Date(date.getTime() + 30 * 86_400_000);
       return api.createCalibrationLog({ tankId, parameter, standard: standard.trim(), before: Number(before), after: Number(after), date: date.toISOString(), user: user?.name ?? 'Mobile operator', nextDue: nextDue.toISOString() });
@@ -346,6 +419,7 @@ export function CalibrationScreen() {
 }
 
 function ManualEntryCard() {
+  const { colors } = useTheme();
   const { tankId } = useTankSelection();
   const { user } = useSession();
   const queryClient = useQueryClient();
@@ -396,6 +470,7 @@ export function FieldEntryScreen() {
 }
 
 export function ExportScreen() {
+  const { colors } = useTheme();
   const { tankId } = useTankSelection();
   const { user } = useSession();
   const readings = useQuery({ queryKey: ['mobile-export-readings', tankId], queryFn: () => api.listReadings({ tankId }), enabled: Boolean(tankId) });
@@ -436,6 +511,7 @@ export function ExportScreen() {
 }
 
 export function ConnectionNotice({ online }: { online: boolean }) {
+  const { colors } = useTheme();
   if (online) return null;
   return <View style={{ position: 'absolute', top: 48, left: 0, right: 0, zIndex: 100, backgroundColor: colors.offline, paddingHorizontal: 14, paddingVertical: 9 }}><Text style={{ color: colors.warning, fontWeight: '800' }}>Offline · showing cached data when available</Text></View>;
 }
