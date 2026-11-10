@@ -1,4 +1,4 @@
-import type { Role } from '@hydrosense/shared';
+import type { Role, SignupAddress } from '@hydrosense/shared';
 
 export type RequestedRole = Exclude<Role, 'admin'>;
 export type AccountStatus = 'pending' | 'approved' | 'rejected';
@@ -13,10 +13,8 @@ export interface SignUpValues extends SignInValues {
   lastName: string;
   employeeId: string;
   phone: string;
-  requestedRole: RequestedRole;
-  position: string;
   hatcheryId: string;
-  address: string;
+  address: SignupAddress;
   emergencyContactName: string;
   emergencyContactPhone: string;
   confirmPassword: string;
@@ -49,7 +47,6 @@ export interface StoredAccount {
 
 export type PendingRequest = AuthUser & {
   role: null;
-  requestedRole: RequestedRole;
   status: 'pending';
 };
 

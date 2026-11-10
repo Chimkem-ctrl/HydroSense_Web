@@ -230,7 +230,7 @@
   min-width: 0;
 }
 
-.signup-phone-field {
+.signup-panel .signup-phone-field {
   display: flex;
   align-items: stretch;
   padding: 0;

@@ -1,4 +1,5 @@
-import type { Role } from '@hydrosense/shared';
+import { formatSignupAddress } from '@hydrosense/shared';
+import type { Role, SignupAddress } from '@hydrosense/shared';
 
 export interface AuthenticatedUser {
   id: string;
@@ -6,17 +7,14 @@ export interface AuthenticatedUser {
   role: Role;
 }
 
-export type RequestedRole = 'operator' | 'manager';
 export interface SignUpValues {
   firstName: string;
   lastName: string;
   employeeId: string;
   phone: string;
   email: string;
-  requestedRole: RequestedRole;
-  position: string;
   hatcheryId: string;
-  address: string;
+  address: SignupAddress;
   emergencyContactName: string;
   emergencyContactPhone: string;
   password: string;
@@ -24,10 +22,6 @@ export interface SignUpValues {
   termsAccepted: boolean;
 }
 
-export const POSITIONS_BY_ROLE: Record<RequestedRole, readonly string[]> = {
-  operator: ['Hatchery Operator', 'Senior Operator', 'Water Quality Technician', 'Shift Supervisor'],
-  manager: ['Hatchery Manager', 'Operations Manager', 'Site Manager'],
-};
 export const HATCHERY = { id: 'camiguin-sagay', name: 'Camiguin, Sagay Multispecies Hatchery' } as const;
 
 function validateEmail(email: string): string | null {
@@ -52,10 +46,8 @@ export function validateSignUp(values: SignUpValues): string | null {
   if (!phone.test(values.phone.trim())) return 'Enter a valid contact number.';
   if (!values.email.trim()) return 'Email is required.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) return 'Enter a valid email address.';
-  if (values.requestedRole !== 'operator' && values.requestedRole !== 'manager') return 'Select Operator or Manager as your requested role.';
-  if (!POSITIONS_BY_ROLE[values.requestedRole].includes(values.position)) return 'Select a position available for your requested role.';
   if (values.hatcheryId !== HATCHERY.id) return 'Select your subscribed hatchery.';
-  if (!values.address.trim()) return 'Address is required.';
+  if (!formatSignupAddress(values.address)) return 'Select a valid country, province, city and barangay, and enter a street address.';
   if (!values.emergencyContactName.trim()) return 'Emergency contact name is required.';
   if (!values.emergencyContactPhone.trim()) return 'Emergency contact number is required.';
   if (!phone.test(values.emergencyContactPhone.trim())) return 'Enter a valid emergency contact number.';
@@ -114,13 +106,11 @@ export async function requestAccount(baseUrl: string, apiKey: string | undefined
   const result = await postAuth(baseUrl, apiKey, 'signup', {
     email: values.email.trim().toLowerCase(),
     password: values.password,
-    requestedRole: values.requestedRole,
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
-    position: values.position.trim(),
     employeeId: values.employeeId.trim(),
     phone: values.phone.trim(),
-    address: values.address.trim(),
+    address: values.address,
     emergencyContactName: values.emergencyContactName.trim(),
     emergencyContactPhone: values.emergencyContactPhone.trim(),
     hatcheryId: values.hatcheryId,

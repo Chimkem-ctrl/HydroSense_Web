@@ -27,7 +27,7 @@ export function PhoneField({ label, value, country, onChange, onCountryChange }:
   const options = PHONE_COUNTRIES.filter((item) => `${item.name} ${item.code} ${item.callingCode}`.toLowerCase().includes(query));
   return <View style={ui.formField}>
     <Text style={ui.label}>{label}</Text>
-    <View style={[ui.input, { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 0, paddingVertical: 0 }]}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface }}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label} country code: ${selected.name} ${selected.callingCode}`}
         accessibilityState={{ expanded: open }} aria-expanded={open} onPress={() => { setSearch(''); setOpen(true); }}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, paddingHorizontal: 10, borderRightWidth: 1, borderRightColor: colors.border }}>
@@ -35,7 +35,7 @@ export function PhoneField({ label, value, country, onChange, onCountryChange }:
         <Text style={{ color: colors.ink, fontSize: 15 }}>{selected.callingCode}</Text>
         <ChevronDown size={16} color={colors.muted} />
       </Pressable>
-      <TextInput accessibilityLabel={label} style={{ flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 12, color: colors.ink, fontSize: 16 }} value={value} onChangeText={onChange}
+      <TextInput accessibilityLabel={label} style={[ui.input, { flex: 1, minWidth: 0, borderWidth: 0, backgroundColor: 'transparent' }]} value={value} onChangeText={onChange}
         placeholder="National number" placeholderTextColor={colors.muted} keyboardType="phone-pad" autoComplete="tel-national" />
     </View>
     <Portal>

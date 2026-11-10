@@ -15,7 +15,11 @@ function fillRequiredFields() {
   fireEvent.change(screen.getByLabelText('Employee / staff ID'), { target: { value: 'EMP-01' } });
   fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'test@example.test' } });
   fireEvent.change(screen.getByLabelText('Subscribed hatchery'), { target: { value: 'camiguin-sagay' } });
-  fireEvent.change(screen.getByLabelText('Home address'), { target: { value: 'Test address' } });
+  fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'PH' } });
+  fireEvent.change(screen.getByLabelText('Province / region'), { target: { value: '1001800000' } });
+  fireEvent.change(screen.getByLabelText('City / municipality / district'), { target: { value: '1001805000' } });
+  fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: '1001805001' } });
+  fireEvent.change(screen.getByLabelText('Street address'), { target: { value: 'Test address' } });
   fireEvent.change(screen.getByLabelText('Emergency contact name'), { target: { value: 'Test contact' } });
   fireEvent.change(screen.getByLabelText('Password', { exact: true }), { target: { value: 'TestPass123' } });
   fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'TestPass123' } });
@@ -23,6 +27,19 @@ function fillRequiredFields() {
 }
 
 describe('signup phone fields', () => {
+  it('clears dependent address selections and does not ask for a role or position', () => {
+    render(<MemoryRouter><SignUpPage /></MemoryRouter>);
+    expect(screen.queryByLabelText('Requested role')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Position')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'PH' } });
+    fireEvent.change(screen.getByLabelText('Province / region'), { target: { value: '1001800000' } });
+    fireEvent.change(screen.getByLabelText('City / municipality / district'), { target: { value: '1001805000' } });
+    fireEvent.change(screen.getByLabelText('Barangay'), { target: { value: '1001805001' } });
+    fireEvent.change(screen.getByLabelText('Province / region'), { target: { value: '1300000000' } });
+    expect(screen.getByLabelText('City / municipality / district')).toHaveValue('');
+    expect(screen.getByLabelText('Barangay')).toHaveValue('');
+    expect(screen.getByLabelText('Barangay')).toBeDisabled();
+  });
   it('submits independently selected country codes as international numbers', async () => {
     const signUp = vi.spyOn(authService, 'signUp').mockResolvedValue({ status: 'pending', redirectPath: '/pending-approval' });
     render(<MemoryRouter><SignUpPage /></MemoryRouter>);

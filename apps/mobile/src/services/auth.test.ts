@@ -34,8 +34,8 @@ describe('mobile API sign-in', () => {
 
 const signup: SignUpValues = {
   firstName: ' Jane ', lastName: ' Smith ', employeeId: ' S-123 ', phone: '+63 912 345 6789',
-  email: ' Jane@Example.test ', requestedRole: 'operator', position: 'Hatchery Operator', hatcheryId: HATCHERY.id,
-  address: ' Address ', emergencyContactName: ' Contact ', emergencyContactPhone: '+63 912 345 6789',
+  email: ' Jane@Example.test ', hatcheryId: HATCHERY.id,
+  address: { country: 'PH', province: '1001800000', city: '1001805000', barangay: '1001805001', street: 'Address' }, emergencyContactName: ' Contact ', emergencyContactPhone: '+63 912 345 6789',
   password: 'TestPass123', confirmPassword: 'TestPass123', termsAccepted: true,
 };
 
@@ -47,9 +47,9 @@ describe('mobile account request', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://example.test/functions/v1/api/v1/auth/signup', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({
-        email: 'jane@example.test', password: 'TestPass123', requestedRole: 'operator',
-        firstName: 'Jane', lastName: 'Smith', position: 'Hatchery Operator', employeeId: 'S-123',
-        phone: '+63 912 345 6789', address: 'Address', emergencyContactName: 'Contact',
+        email: 'jane@example.test', password: 'TestPass123',
+        firstName: 'Jane', lastName: 'Smith', employeeId: 'S-123',
+        phone: '+63 912 345 6789', address: signup.address, emergencyContactName: 'Contact',
         emergencyContactPhone: '+63 912 345 6789', hatcheryId: HATCHERY.id,
       }),
     }));
@@ -89,6 +89,19 @@ describe('mobile account request', () => {
     for (const hatcheryId of ['', 'unknown']) {
       await expect(requestAccount('https://example.test', 'key', { ...signup, hatcheryId }))
         .rejects.toThrow('Select your subscribed hatchery.');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects incomplete or mismatched address selections', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    for (const address of [
+      { ...signup.address, street: '' },
+      { ...signup.address, barangay: '1380100001' },
+      { ...signup.address, province: '1300000000' },
+    ]) {
+      await expect(requestAccount('https://example.test', 'key', { ...signup, address })).rejects.toThrow('valid country');
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });

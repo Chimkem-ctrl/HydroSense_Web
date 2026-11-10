@@ -1,5 +1,4 @@
 import { webcrypto } from 'node:crypto';
-import type { Role } from '@hydrosense/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   authService,
@@ -8,7 +7,7 @@ import {
   signOut,
   SUBSCRIBED_HATCHERIES,
 } from './authService';
-import type { RequestedRole, SignUpValues } from '../types/auth.types';
+import type { SignUpValues } from '../types/auth.types';
 
 const ACCOUNT_KEY = 'hydrosense.auth.accounts.v2';
 const SESSION_KEY = 'hydrosense.auth.session.v2';
@@ -21,10 +20,8 @@ function signupValues(overrides: Partial<SignUpValues> = {}): SignUpValues {
     phone: '+63 917 555 0100',
     email: 'taylor@example.com',
     password: 'TestPass!2026',
-    requestedRole: 'operator',
-    position: 'Hatchery Operator',
     hatcheryId: SUBSCRIBED_HATCHERIES[0].id,
-    address: 'Sagay, Camiguin',
+    address: { country: 'PH', province: '1001800000', city: '1001805000', barangay: '1001805001', street: 'Main Street' },
     emergencyContactName: 'Alex Rivera',
     emergencyContactPhone: '+63 917 555 0101',
     confirmPassword: 'TestPass!2026',
@@ -75,7 +72,7 @@ describe('authService', () => {
   it('blocks rejected accounts after verifying the password', async () => {
     const userId = await createPendingRequest();
     await signInAsAdmin();
-    authService.rejectRequest(userId);
+    await authService.rejectRequest(userId);
     signOut();
 
     await expect(authService.signIn('taylor@example.com', 'incorrect-password'))
@@ -87,11 +84,11 @@ describe('authService', () => {
   it('approves with the selected role instead of the requested role', async () => {
     const userId = await createPendingRequest();
     await signInAsAdmin();
-    authService.approveRequest(userId, 'manager');
+    await authService.approveRequest(userId, 'manager');
     signOut();
 
     await expect(authService.signIn('taylor@example.com', 'TestPass!2026'))
-      .resolves.toMatchObject({ status: 'approved', user: { role: 'manager', requestedRole: 'operator' } });
+      .resolves.toMatchObject({ status: 'approved', user: { role: 'manager', requestedRole: null } });
     expect(getCurrentUser()?.role).toBe('manager');
 
     const accounts = JSON.parse(window.localStorage.getItem(ACCOUNT_KEY) ?? '[]');
@@ -104,37 +101,36 @@ describe('authService', () => {
     expect(getCurrentUser()).toBeNull();
   });
 
-  it('never allows request review to grant the admin role', async () => {
+  it('allows administrators to approve requests as admin', async () => {
     const userId = await createPendingRequest();
     await signInAsAdmin();
 
-    expect(() => authService.approveRequest(userId, 'admin' as Role))
-      .toThrow('Account requests can only be approved as Operator or Manager.');
-    expect(authService.listPendingRequests()).toHaveLength(1);
+    await authService.approveRequest(userId, 'admin');
+    expect(await authService.listPendingRequests()).toHaveLength(0);
+    signOut();
+    await expect(authService.signIn('taylor@example.com', 'TestPass!2026')).resolves.toMatchObject({ user: { role: 'admin' } });
   });
 
   it('allows only the admin to list and review requests', async () => {
     const firstRequestId = await createPendingRequest();
     const secondRequestId = await createPendingRequest(signupValues({ email: 'second@example.com' }));
-    expect(() => authService.listPendingRequests()).toThrow('Only the administrator may review account requests.');
+    await expect(authService.listPendingRequests()).rejects.toThrow('Only the administrator may review account requests.');
 
     await signInAsAdmin();
-    authService.approveRequest(firstRequestId, 'operator');
+    await authService.approveRequest(firstRequestId, 'operator');
     signOut();
     await authService.signIn('taylor@example.com', 'TestPass!2026');
 
-    expect(() => authService.listPendingRequests()).toThrow('Only the administrator may review account requests.');
-    expect(() => authService.approveRequest(secondRequestId, 'manager')).toThrow('Only the administrator may review account requests.');
-    expect(() => authService.rejectRequest(secondRequestId)).toThrow('Only the administrator may review account requests.');
+    await expect(authService.listPendingRequests()).rejects.toThrow('Only the administrator may review account requests.');
+    await expect(authService.approveRequest(secondRequestId, 'manager')).rejects.toThrow('Only the administrator may review account requests.');
+    await expect(authService.rejectRequest(secondRequestId)).rejects.toThrow('Only the administrator may review account requests.');
   });
 
-  it('rejects duplicate emails, including the admin email, and invalid roles', async () => {
+  it('rejects duplicate emails, including the admin email', async () => {
     await createPendingRequest();
     await expect(authService.signUp(signupValues({ email: 'TAYLOR@example.com' })))
       .rejects.toThrow('An account with this email already exists.');
     await expect(authService.signUp(signupValues({ email: DEMO_ADMIN_CREDENTIALS.email })))
       .rejects.toThrow('An account with this email already exists.');
-    await expect(authService.signUp(signupValues({ requestedRole: 'admin' as RequestedRole })))
-      .rejects.toThrow('Select Operator or Manager as your requested role.');
   });
 });

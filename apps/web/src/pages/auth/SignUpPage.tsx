@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
-import { formatSignupPhone } from '@hydrosense/shared';
+import { ADDRESS_PROVINCES, EMPTY_SIGNUP_ADDRESS, addressBarangays, addressCities, formatSignupAddress, formatSignupPhone } from '@hydrosense/shared';
 import type { PhoneCountryCode } from '@hydrosense/shared';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthFooter from '../../components/auth/AuthFooter';
@@ -12,8 +12,8 @@ import FormInput from '../../components/common/FormInput';
 import GlassPanel from '../../components/common/GlassPanel';
 import PrimaryButton from '../../components/common/PrimaryButton';
 import { useAuthForm } from '../../hooks/useAuthForm';
-import { authService, POSITIONS_BY_ROLE, SUBSCRIBED_HATCHERIES } from '../../services/authService';
-import type { RequestedRole, SignUpValues } from '../../types/auth.types';
+import { authService, SUBSCRIBED_HATCHERIES } from '../../services/authService';
+import type { SignUpValues } from '../../types/auth.types';
 
 const initialValues: SignUpValues = {
   firstName: '',
@@ -21,10 +21,8 @@ const initialValues: SignUpValues = {
   employeeId: '',
   phone: '',
   email: '',
-  requestedRole: 'operator',
-  position: POSITIONS_BY_ROLE.operator[0],
   hatcheryId: '',
-  address: '',
+  address: EMPTY_SIGNUP_ADDRESS,
   emergencyContactName: '',
   emergencyContactPhone: '',
   password: '',
@@ -44,14 +42,8 @@ function validate(values: SignUpValues, phoneCountry: PhoneCountryCode, emergenc
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
     errors.email = 'Enter a valid email address.';
   }
-  if (values.requestedRole !== 'operator' && values.requestedRole !== 'manager') {
-    errors.requestedRole = 'Select Operator or Manager as your requested role.';
-  }
-  if (!POSITIONS_BY_ROLE[values.requestedRole]?.includes(values.position)) {
-    errors.position = 'Select a position available for your requested role.';
-  }
   if (!values.hatcheryId) errors.hatcheryId = 'Select your subscribed hatchery.';
-  if (!values.address.trim()) errors.address = 'Address is required.';
+  if (!formatSignupAddress(values.address)) errors.address = 'Select a valid country, province, city and barangay, and enter a street address.';
   if (!values.emergencyContactName.trim()) {
     errors.emergencyContactName = 'Emergency contact name is required.';
   }
@@ -97,29 +89,10 @@ export default function SignUpPage() {
         <GlassPanel className="auth-panel signup-panel operator-signup-panel">
           <h1>Request an account</h1>
           <p className="operator-signup-intro">
-            Submit your staff details for administrator approval. Your requested role is not active until approved.
+            Submit your staff details for administrator approval. An administrator will assign your role.
           </p>
           <form onSubmit={form.handleSubmit} noValidate>
             <div className="operator-signup-grid">
-              <div className="form-field">
-                <label className="form-label" htmlFor="requestedRole">Requested role</label>
-                <select
-                  id="requestedRole"
-                  className={`form-control${form.errors.requestedRole ? ' has-error' : ''}`}
-                  value={form.values.requestedRole}
-                  onChange={(event) => {
-                    const role = event.target.value as RequestedRole;
-                    form.setField('requestedRole', role);
-                    form.setField('position', POSITIONS_BY_ROLE[role][0]);
-                  }}
-                  aria-invalid={Boolean(form.errors.requestedRole)}
-                  required
-                >
-                  <option value="operator">Operator</option>
-                  <option value="manager">Manager</option>
-                </select>
-                {form.errors.requestedRole && <span className="field-error" role="alert">{form.errors.requestedRole}</span>}
-              </div>
               <FormInput
                 label="First name"
                 name="firstName"
@@ -152,22 +125,6 @@ export default function SignUpPage() {
                 error={form.errors.employeeId}
                 required
               />
-              <div className="form-field">
-                <label className="form-label" htmlFor="position">Position</label>
-                <select
-                  id="position"
-                  className={`form-control${form.errors.position ? ' has-error' : ''}`}
-                  value={form.values.position}
-                  onChange={(event) => form.setField('position', event.target.value)}
-                  aria-invalid={Boolean(form.errors.position)}
-                  required
-                >
-                  {POSITIONS_BY_ROLE[form.values.requestedRole].map((position) => (
-                    <option key={position} value={position}>{position}</option>
-                  ))}
-                </select>
-                {form.errors.position && <span className="field-error" role="alert">{form.errors.position}</span>}
-              </div>
               <PhoneField
                 label="Contact number"
                 name="phone"
@@ -205,18 +162,26 @@ export default function SignUpPage() {
                 </select>
                 {form.errors.hatcheryId && <span className="field-error" role="alert">{form.errors.hatcheryId}</span>}
               </div>
-              <FormInput
-                className="operator-signup-wide"
-                label="Home address"
-                name="address"
-                type="text"
-                placeholder="Barangay, municipality, province"
-                autoComplete="street-address"
-                value={form.values.address}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => form.setField('address', event.target.value)}
-                error={form.errors.address}
-                required
-              />
+              {([
+                { key: 'country', label: 'Country', options: [{ id: 'PH', name: 'Philippines' }], disabled: false },
+                { key: 'province', label: 'Province / region', options: ADDRESS_PROVINCES, disabled: !form.values.address.country },
+                { key: 'city', label: 'City / municipality / district', options: addressCities(form.values.address.province), disabled: !form.values.address.province },
+                { key: 'barangay', label: 'Barangay', options: addressBarangays(form.values.address.city), disabled: !form.values.address.city },
+              ] as const).map(({ key, label, options, disabled }) => <div className="form-field" key={key}>
+                <label className="form-label" htmlFor={`address-${key}`}>{label}</label>
+                <select id={`address-${key}`} className="form-control" value={form.values.address[key]} disabled={disabled} required
+                  onChange={(event) => form.setField('address', {
+                    ...form.values.address, [key]: event.target.value,
+                    ...(key === 'country' ? { province: '', city: '', barangay: '' } : key === 'province' ? { city: '', barangay: '' } : key === 'city' ? { barangay: '' } : {}),
+                  })}>
+                  <option value="">Select {label.toLowerCase()}</option>
+                  {options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                </select>
+              </div>)}
+              <FormInput className="operator-signup-wide" label="Street address" name="street" type="text" placeholder="House number and street"
+                autoComplete="street-address" value={form.values.address.street}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => form.setField('address', { ...form.values.address, street: event.target.value })}
+                error={form.errors.address} required />
               <FormInput
                 label="Emergency contact name"
                 name="emergencyContactName"

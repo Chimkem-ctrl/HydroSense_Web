@@ -19,9 +19,9 @@ import {
   validateActivityLog,
   validateThresholds,
 } from '@hydrosense/shared';
-import type { ActivityLog, AlertItem, MeasuredParameter, Reading, Threshold } from '@hydrosense/shared';
+import type { ActivityLog, AlertItem, MeasuredParameter, Reading, Role, Threshold } from '@hydrosense/shared';
 import type { MainTabParamList, RootStackParamList } from './navigation';
-import { DATA_MODE, api } from './services/client';
+import { DATA_MODE, api, listPendingAccounts, reviewPendingAccount } from './services/client';
 import { canAccess } from './access';
 import { useSession, useTankSelection } from './state';
 import { Button, Card, createFormStyles, DataRow, Page, StateMessage, Title } from './components/ui';
@@ -277,12 +277,40 @@ export function AdminReviewScreen({ navigation }: Props<'Review'>) {
   const { colors } = useTheme();
   const { user } = useSession();
   const allowed = canAccess(user?.role ?? null, 'admin');
+  const queryClient = useQueryClient();
+  const [selectedRoles, setSelectedRoles] = useState<Record<string, Role | undefined>>({});
+  const pending = useQuery({ queryKey: ['pending-accounts'], queryFn: listPendingAccounts, enabled: allowed && DATA_MODE === 'api' });
+  const review = useMutation({
+    mutationFn: ({ id, role }: { id: string; role: Role | null }) => reviewPendingAccount(id, role),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['pending-accounts'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
   const users = useQuery({ queryKey: ['admin-users'], queryFn: () => api.listUsers(), enabled: allowed });
   const logs = useQuery({ queryKey: ['audit-logs'], queryFn: () => api.listAuditLogs(), enabled: allowed });
   if (!allowed) return <Page><StateMessage message="You do not have access to administration." /></Page>;
   return <Page>
-    <Title detail="Read-only account and audit overview">Admin overview</Title>
+    <Title detail="Review account requests and audit events">Admin overview</Title>
     <Button label="Review validation comparisons" secondary onPress={() => navigation.getParent()?.navigate('ValidationReview')} />
+    <Card title="Pending requests">
+      {DATA_MODE === 'mock' ? <StateMessage message="Account review is unavailable in mobile demo mode. Connect to the backend to review requests." /> :
+        pending.isLoading ? <StateMessage message="Loading requests…" loading /> : pending.isError ? <><StateMessage message={`Could not load requests: ${pending.error.message}`} /><Button label="Retry requests" secondary onPress={() => void pending.refetch()} /></> :
+          !pending.data?.length ? <StateMessage message="No account requests are awaiting review." /> : pending.data.map((account) => <View key={account.id} style={{ gap: 8, paddingVertical: 10 }}>
+            <Text style={{ color: colors.ink, fontWeight: '700' }}>{account.firstName} {account.lastName}</Text>
+            <Text style={{ color: colors.muted }}>{account.email} · {account.employeeId ?? '—'}</Text>
+            <Text style={{ color: colors.ink }}>Choose an approval role:</Text>
+            <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {(['operator', 'manager', 'admin'] as const).map((role) => <Pressable key={role} accessibilityRole="radio" accessibilityState={{ checked: selectedRoles[account.id] === role }} onPress={() => setSelectedRoles((current) => ({ ...current, [account.id]: role }))}
+                style={{ padding: 10, borderWidth: 1, borderRadius: 10, borderColor: selectedRoles[account.id] === role ? colors.teal : colors.border, backgroundColor: selectedRoles[account.id] === role ? colors.selected : colors.surface }}>
+                <Text style={{ color: colors.ink }}>{role[0].toUpperCase() + role.slice(1)}</Text>
+              </Pressable>)}
+            </View>
+            <Button label="Approve" disabled={!selectedRoles[account.id] || review.isPending} onPress={() => { const role = selectedRoles[account.id]; if (role) review.mutate({ id: account.id, role }); }} />
+            <Button label="Reject" secondary disabled={review.isPending} onPress={() => review.mutate({ id: account.id, role: null })} />
+          </View>)}
+      {review.isError && <StateMessage message={`Could not review request: ${review.error.message}`} />}
+    </Card>
     <Card title="Accounts">
       {users.isLoading ? <StateMessage message="Loading accounts…" loading /> : users.isError ? <><StateMessage message={`Could not load accounts: ${users.error.message}`} /><Button label="Retry accounts" secondary onPress={() => void users.refetch()} /></> : !users.data?.length ? <StateMessage message="No accounts found." /> : users.data.map((account) => <DataRow key={account.id} label={account.name || account.email} value={account.role ?? 'Unassigned'} detail={account.email} />)}
     </Card>
