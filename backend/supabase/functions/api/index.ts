@@ -139,6 +139,49 @@ Deno.serve(async (request) => {
     }).select("id,timestamp").single();
     if (error) return json({ error: error.message }, 400);
 
+    const { data: thresholds } = await admin.from("thresholds").select("*");
+    const checkAndCreateAlert = async (parameter: string, value: number, thresholdRow: { min_value?: number; max_value?: number } | undefined) => {
+      if (!thresholdRow || value === null) return;
+      const min = thresholdRow.min_value;
+      const max = thresholdRow.max_value;
+      const violated = (min !== null && value < min) || (max !== null && value > max);
+      if (!violated) return;
+
+      const { data: recentAlert } = await admin
+        .from("alerts")
+        .select("id")
+        .eq("tank_id", tank.id)
+        .eq("parameter", parameter)
+        .eq("status", "open")
+        .maybeSingle();
+      if (recentAlert) return;
+
+      const thresholdStr = [
+        min !== null && min !== undefined ? `>${min}` : null,
+        max !== null && max !== undefined ? `<${max}` : null,
+      ].filter(Boolean).join(" or ");
+
+      const severity = Math.abs(value - (min ?? max ?? 0)) > 2 ? "critical" : "warning";
+      await admin.from("alerts").insert({
+        tank_id: tank.id,
+        parameter,
+        value,
+        threshold: thresholdStr || "configured",
+        severity,
+        status: "open",
+      });
+    };
+
+    const temperatureThreshold = thresholds?.find((t) => t.parameter === "temperature");
+    const doThreshold = thresholds?.find((t) => t.parameter === "do");
+    const phThreshold = thresholds?.find((t) => t.parameter === "ph");
+
+    await Promise.all([
+      checkAndCreateAlert("temperature", temperature, temperatureThreshold),
+      checkAndCreateAlert("do", doMgL, doThreshold),
+      checkAndCreateAlert("ph", ph, phThreshold),
+    ]);
+
     const wifiRssi = optionalNumber(reading.wifiRssi);
     const batteryPct = optionalNumber(reading.batteryPct);
     await admin.from("device_statuses").upsert({
@@ -163,6 +206,9 @@ Deno.serve(async (request) => {
   if (userError || !userData.user) return json({ error: "Invalid or expired session." }, 401);
 
   const { data: profile } = await admin.from("profiles").select("*").eq("id", userData.user.id).single();
+  if (!profile || profile.status !== "approved" || !["operator", "manager", "admin"].includes(profile.role)) {
+    return json({ error: "An approved account is required." }, 403);
+  }
 
   if (action === "/v1/tanks" && request.method === "GET") {
     const { data, error } = await admin.from("tanks").select("*").order("name");
@@ -287,40 +333,45 @@ Deno.serve(async (request) => {
 
   const advisoryMatch = action.match(/^\/v1\/tanks\/([^/]+)\/advisories$/);
   if (advisoryMatch && request.method === "GET") {
-    const { data: settings } = await admin.from("advisory_settings").select("*").eq("id", true).single();
-    const { data: latest } = await admin.from("readings")
+    const { data: settings, error: settingsError } = await admin.from("advisory_settings").select("*").eq("id", true).single();
+    if (settingsError) return json({ error: settingsError.message }, 500);
+    const tankId = decodeURIComponent(advisoryMatch[1]);
+    const { data: latest, error: readingError } = await admin.from("readings")
       .select("*")
-      .eq("tank_id", decodeURIComponent(advisoryMatch[1]))
+      .eq("tank_id", tankId)
       .order("timestamp", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const updatedAt = latest?.timestamp ?? new Date().toISOString();
-    const temperature = latest?.temperature ?? null;
-    const ph = latest?.ph ?? null;
-    const salinityLevel = temperature !== null && temperature >= (settings?.salinity_high_temperature_c ?? 33)
-      ? "high"
-      : temperature !== null && temperature >= (settings?.salinity_watch_temperature_c ?? 31)
-        ? "watch"
-        : "normal";
-    const ammoniaLevel = ph !== null && ph >= (settings?.ammonia_high_ph ?? 8)
-      ? "high"
-      : ph !== null && ph >= (settings?.ammonia_watch_ph ?? 7.8)
-        ? "watch"
-        : "normal";
+    if (readingError) return json({ error: readingError.message }, 500);
+    if (!latest) return json([]);
+    const { data: entries, error: entriesError } = await admin.from("manual_entries").select("type").eq("tank_id", tankId);
+    if (entriesError) return json({ error: entriesError.message }, 500);
+    const { data: events, error: eventsError } = await admin.from("activity_logs").select("kind,type").in("tank_id", [tankId, "hatchery"]);
+    if (eventsError) return json({ error: eventsError.message }, 500);
+    const rain = entries.some((entry) => entry.type === "rain_event") || events.some((event) => event.kind === "ENVIRONMENT" && event.type === "Rainfall");
+    const dosing = entries.some((entry) => entry.type === "freshwater_dosing") || events.some((event) => event.kind === "OPERATION" && event.type === "Freshwater dosing (log only)");
+    const temperature = latest.temperature;
+    const ph = latest.ph;
+    const salinityLevel = temperature >= settings.salinity_high_temperature_c && !rain && !dosing ? "high" :
+      temperature >= settings.salinity_watch_temperature_c || rain || dosing ? "watch" : "low";
+    const ammoniaLevel = temperature >= settings.ammonia_watch_temperature_c || ph >= settings.ammonia_high_ph ? "watch" : "low";
     return json([
       {
         kind: "salinity",
         level: salinityLevel,
-        inputs: { temperature: temperature ?? "unavailable", thresholdC: settings?.salinity_watch_temperature_c ?? 31 },
-        firedRule: temperature === null ? "No recent reading" : `${salinityLevel} temperature rule`,
-        updatedAt,
+        inputs: { temperatureC: temperature, recentRainEvent: rain ? "yes" : "no", freshwaterDosingLogged: dosing ? "yes" : "no" },
+        firedRule: salinityLevel === "high" ? `Temperature at or above ${settings.salinity_high_temperature_c}°C without a recent dilution event` :
+          salinityLevel === "watch" ? `Temperature at or above ${settings.salinity_watch_temperature_c}°C or a recent water event was logged` :
+          `No salinity advisory rule fired (temperature below ${settings.salinity_watch_temperature_c}°C; no recent water event)`,
+        updatedAt: latest.timestamp,
       },
       {
         kind: "ammonia",
         level: ammoniaLevel,
-        inputs: { ph: ph ?? "unavailable", thresholdPh: settings?.ammonia_watch_ph ?? 7.8 },
-        firedRule: ph === null ? "No recent reading" : `${ammoniaLevel} pH rule`,
-        updatedAt,
+        inputs: { temperatureC: temperature, ph, feedingLoad: "usual" },
+        firedRule: ammoniaLevel === "watch" ? `Temperature at or above ${settings.ammonia_watch_temperature_c}°C, high pH, or high feeding load` :
+          "No ammonia advisory rule fired (temperature and pH below configured rules; usual feeding load)",
+        updatedAt: latest.timestamp,
       },
     ]);
   }
@@ -438,7 +489,7 @@ Deno.serve(async (request) => {
     const body = await request.json();
     const { data, error } = await admin.from("manual_entries").insert({
       tank_id: body.tankId, type: body.type, value: body.value ?? null,
-      unit: body.unit ?? null, timestamp: body.timestamp, entered_by: body.enteredBy, note: body.note ?? null,
+      unit: body.unit ?? null, entered_by: body.enteredBy, note: body.note ?? null,
     }).select().single();
     if (error) return json({ error: error.message }, 400);
     return json({
@@ -450,7 +501,7 @@ Deno.serve(async (request) => {
   if (action === "/v1/activity-logs" && ["GET", "POST"].includes(request.method)) {
     if (request.method === "GET") {
       let query = admin.from("activity_logs").select("*");
-      if (url.searchParams.get("tank_id")) query = query.eq("tank_id", url.searchParams.get("tank_id"));
+      if (url.searchParams.get("tank_id")) query = query.in("tank_id", [url.searchParams.get("tank_id"), "hatchery"]);
       const { data, error } = await query.order("occurred_at", { ascending: false });
       if (error) return json({ error: error.message }, 500);
       return json(data?.map((row) => ({
@@ -463,7 +514,7 @@ Deno.serve(async (request) => {
 
     const body = await request.json();
     const { data, error } = await admin.from("activity_logs").insert({
-      tank_id: body.tankId, kind: body.kind, type: body.type, occurred_at: body.occurredAt,
+      tank_id: body.tankId, kind: body.kind, type: body.type,
       operator: body.operator, notes: body.notes ?? "", water_change_percent: body.waterChangePercent ?? null,
       water_source: body.waterSource ?? null, impact: body.impact ?? null,
       manual_readings: body.manualReadings ?? null,
@@ -533,9 +584,9 @@ Deno.serve(async (request) => {
     return json(body.tolerances);
   }
 
-  if (action === "/v1/admin/users" && request.method === "GET") {
+  if ((action === "/v1/admin/users" || action === "/v1/admin/pending-requests") && request.method === "GET") {
     if (!profile || profile.status !== "approved" || !["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
-    const status = url.searchParams.get("status");
+    const status = action === "/v1/admin/pending-requests" ? "pending" : url.searchParams.get("status");
     if (status && !["pending", "approved", "rejected"].includes(status)) return json({ error: "Invalid account status." }, 400);
     if (profile.role !== "admin" && status && status !== "approved") return json({ error: "Forbidden." }, 403);
     const query = admin.from("profiles").select("*").order("created_at", { ascending: false }).eq("status", status ?? "approved");
@@ -550,10 +601,35 @@ Deno.serve(async (request) => {
     })));
   }
 
-  const adminUserUpdate = action.match(/^\/v1\/admin\/users\/([^/]+)$/);
-  if (adminUserUpdate && request.method === "PATCH") {
-    if (profile?.role !== "admin" || profile.status !== "approved") return json({ error: "Forbidden." }, 403);
+  const adminRoleUpdate = action.match(/^\/v1\/admin\/users\/([^/]+)\/role$/);
+  if (adminRoleUpdate && request.method === "PUT") {
+    if (profile.role !== "admin") return json({ error: "Forbidden." }, 403);
     const body = await request.json();
+    if (body.role !== "operator" && body.role !== "manager") return json({ error: "Users may only be assigned the Operator or Manager role." }, 400);
+    const userId = decodeURIComponent(adminRoleUpdate[1]);
+    const { data, error } = await admin.from("profiles").update({ role: body.role }).eq("id", userId)
+      .eq("status", "approved").in("role", ["operator", "manager"]).select().maybeSingle();
+    if (error) return json({ error: error.message }, 400);
+    if (!data) return json({ error: "Approved non-admin account was not found." }, 404);
+    const actor = `${profile.first_name} ${profile.last_name}`.trim() || profile.email;
+    const { error: auditError } = await admin.from("audit_logs").insert({
+      user_name: actor, action: "User role updated", detail: `${userId} role set to ${body.role}`,
+    });
+    if (auditError) console.error("Could not record user role change audit:", auditError.message);
+    return json({
+      id: data.id, name: `${data.first_name} ${data.last_name}`.trim(), email: data.email,
+      role: data.role, site: data.site, active: data.active, lastActive: data.last_active,
+      employeeId: data.employee_id, phone: data.phone, position: data.position, address: data.address,
+      emergencyContactName: data.emergency_contact_name, emergencyContactPhone: data.emergency_contact_phone,
+    });
+  }
+
+  const adminUserUpdate = action.match(/^\/v1\/admin\/users\/([^/]+)$/);
+  const pendingReview = action.match(/^\/v1\/admin\/pending-requests\/([^/]+)\/(approve|reject)$/);
+  if ((adminUserUpdate && request.method === "PATCH") || (pendingReview && request.method === "PUT")) {
+    if (profile?.role !== "admin" || profile.status !== "approved") return json({ error: "Forbidden." }, 403);
+    const body = pendingReview?.[2] === "reject" ? { status: "rejected", role: null } :
+      pendingReview?.[2] === "approve" ? { ...(await request.json()), status: "approved" } : await request.json();
     if (!((body.status === "approved" && ["operator", "manager", "admin"].includes(body.role)) ||
       (body.status === "rejected" && body.role === null))) {
       return json({ error: "Select a valid approval role or reject the request." }, 400);
@@ -562,7 +638,8 @@ Deno.serve(async (request) => {
       status: body.status,
       role: body.role,
     };
-    const { data, error } = await admin.from("profiles").update(updates).eq("id", decodeURIComponent(adminUserUpdate[1])).eq("status", "pending").select().maybeSingle();
+    const userId = decodeURIComponent(pendingReview ? pendingReview[1] : adminUserUpdate![1]);
+    const { data, error } = await admin.from("profiles").update(updates).eq("id", userId).eq("status", "pending").select().maybeSingle();
     if (error) return json({ error: error.message }, 400);
     if (!data) return json({ error: "Pending account request was not found." }, 404);
     return json({
