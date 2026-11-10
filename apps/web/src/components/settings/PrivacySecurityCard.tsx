@@ -1,17 +1,11 @@
 import { useState } from 'react';
 import ToggleSwitch from './ToggleSwitch';
 
-interface PrivacySecurityCardProps {
-  onViewAuditTrail: () => void;
-}
-
-export default function PrivacySecurityCard({
-  onViewAuditTrail,
-}: PrivacySecurityCardProps) {
+export default function PrivacySecurityCard() {
   const [twoFactor, setTwoFactor] = useState(false);
   const [requireOtp, setRequireOtp] = useState(false);
-  const [shareLogs, setShareLogs] = useState(false);
   const [loggedOut, setLoggedOut] = useState(false);
+  const [notice, setNotice] = useState('');
 
   return (
     <section className="card settings-card" aria-labelledby="privacy-security-title">
@@ -66,25 +60,28 @@ export default function PrivacySecurityCard({
         )}
       </div>
 
-      <h3 className="settings-section-title">System Log &amp; Data Access</h3>
-      <div className="settings-box">
-        <ToggleSwitch
-          id="log-share"
-          label="Share Diagnostic Logs"
-          checked={shareLogs}
-          onChange={setShareLogs}
-        />
+      <h3 className="settings-section-title">Maintenance Actions</h3>
+      <div className="settings-box settings-actions">
         <button
           type="button"
-          className="button settings-link-row"
-          onClick={onViewAuditTrail}
+          className="button button-danger"
+          onClick={() => setNotice('Sensor calibration requested.')}
         >
-          <span>
-            Account Audit Trail <strong>(Admin Only)</strong>
-          </span>
-          <span aria-hidden="true">&rsaquo;</span>
+          Request Calibrate Sensors
+        </button>
+        <button
+          type="button"
+          className="button button-danger"
+          onClick={() => setNotice('Hardware node reboot requested.')}
+        >
+          Request Reboot Hardware Node
         </button>
       </div>
+      {notice && (
+        <p className="form-status" role="status">
+          {notice}
+        </p>
+      )}
     </section>
   );
 }

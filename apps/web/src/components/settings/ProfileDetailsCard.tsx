@@ -12,8 +12,6 @@ export default function ProfileDetailsCard() {
     weekly: false,
     maintenance: false,
   });
-  const [notice, setNotice] = useState('');
-
   const setPref = (key: keyof typeof prefs) => (value: boolean) =>
     setPrefs((current) => ({ ...current, [key]: value }));
 
@@ -68,28 +66,6 @@ export default function ProfileDetailsCard() {
         />
       </div>
 
-      <h3 className="settings-section-title">Maintenance Actions</h3>
-      <div className="settings-box settings-actions">
-        <button
-          type="button"
-          className="button button-danger"
-          onClick={() => setNotice('Sensor calibration requested.')}
-        >
-          Request Calibrate Sensors
-        </button>
-        <button
-          type="button"
-          className="button button-danger"
-          onClick={() => setNotice('Hardware node reboot requested.')}
-        >
-          Request Reboot Hardware Node
-        </button>
-      </div>
-      {notice && (
-        <p className="form-status" role="status">
-          {notice}
-        </p>
-      )}
     </section>
   );
 }

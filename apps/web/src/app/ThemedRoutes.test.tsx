@@ -36,6 +36,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   window.localStorage.removeItem('hydrosense.auth.session.v2');
+  window.localStorage.removeItem('hydrosense.auth.accounts.v2');
   window.localStorage.removeItem('hydrosense.theme');
 });
 
@@ -98,10 +99,39 @@ describe('themed dashboard routes', () => {
     expect(criticalAlerts).not.toBeChecked();
     expect(within(devices).getByLabelText('Tank ID')).toBeInTheDocument();
     expect(within(devices).getByLabelText('Wi-Fi password')).toHaveAttribute('type', 'password');
-    fireEvent.click(within(security).getByRole('button', { name: /Account Audit Trail/ }));
-    expect(screen.getByRole('dialog', { name: 'Account Audit Trail' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('dialog', { name: 'Account Audit Trail' })).not.toBeInTheDocument();
+    expect(within(security).getByRole('heading', { name: 'Maintenance Actions' })).toBeInTheDocument();
+    expect(within(profile).queryByRole('heading', { name: 'Maintenance Actions' })).not.toBeInTheDocument();
+    expect(within(security).queryByRole('heading', { name: 'System Log & Data Access' })).not.toBeInTheDocument();
+    expect(within(security).queryByRole('switch', { name: 'Share Diagnostic Logs' })).not.toBeInTheDocument();
+    expect(within(security).queryByRole('button', { name: /Account Audit Trail/ })).not.toBeInTheDocument();
+    fireEvent.click(within(security).getByRole('button', { name: 'Request Calibrate Sensors' }));
+    expect(within(security).getByRole('status')).toHaveTextContent('Sensor calibration requested.');
+    fireEvent.click(within(security).getByRole('button', { name: 'Request Reboot Hardware Node' }));
+    expect(within(security).getByRole('status')).toHaveTextContent('Hardware node reboot requested.');
+  });
+
+  it.each(['operator', 'manager'] as const)('shows maintenance instead of system log settings for %s', async (role) => {
+    const user = {
+      id: `test-${role}`,
+      firstName: 'Test',
+      lastName: role,
+      email: `${role}@example.com`,
+      role,
+      requestedRole: role,
+      status: 'approved',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    window.localStorage.setItem('hydrosense.auth.accounts.v2', JSON.stringify([{ user, passwordSalt: 'salt', passwordHash: 'hash' }]));
+    window.localStorage.setItem('hydrosense.auth.session.v2', JSON.stringify({ userId: user.id }));
+    window.history.replaceState({}, '', '/settings');
+    render(<App />);
+    const profile = await screen.findByRole('region', { name: 'Account profile' });
+    const security = screen.getByRole('region', { name: 'Privacy & Security' });
+    expect(within(security).getByRole('heading', { name: 'Maintenance Actions' })).toBeInTheDocument();
+    expect(within(profile).queryByRole('heading', { name: 'Maintenance Actions' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'System Log & Data Access' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Share Diagnostic Logs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Account Audit Trail/ })).not.toBeInTheDocument();
   });
 
   it('groups profile details and keeps linked preference tabs functional', async () => {
