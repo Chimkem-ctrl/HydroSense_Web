@@ -7,7 +7,8 @@
     "stop": "npx supabase stop --workdir supabase",
     "db:push": "npx supabase db push --workdir supabase",
     "db:migrate": "node scripts/migrate.mjs",
-    "deploy:api": "node scripts/deploy-api.mjs"
+    "deploy:api": "node scripts/deploy-api.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

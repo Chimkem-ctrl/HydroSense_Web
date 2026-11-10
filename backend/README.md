@@ -390,9 +390,9 @@ These tables are included in the `supabase_realtime` publication:
 
 The repository does not yet implement the WebSocket endpoint. Realtime subscribers should connect through the Supabase Realtime client rather than `/ws/v1/stream` until that adapter is implemented.
 
-## Routes not yet implemented
+## Account and operational routes
 
-The following routes are still needed to complete the REST contract used by the shared API:
+The API includes these routes:
 
 - `GET`, `POST /v1/manual-entries`
 - `GET`, `POST /v1/activity-logs`
@@ -403,7 +403,13 @@ The following routes are still needed to complete the REST contract used by the 
 - `PUT /v1/admin/pending-requests/{user_id}/approve`
 - `PUT /v1/admin/pending-requests/{user_id}/reject`
 
-Database tables exist for manual entries, activity logs, validation rows, and advisory configuration, but corresponding REST handlers are not all implemented yet.
+Pending requests can also be reviewed through `GET /v1/admin/users?status=pending`
+and `PATCH /v1/admin/users/{user_id}`, which are used by the web and mobile
+apps. Approval requires an explicit `role` of `operator`, `manager`, or `admin`;
+rejection does not assign a role. Both review and approved-user role changes
+require an approved admin session. Deploy the updated function before using
+the updated signup form; deployment requires a Supabase CLI account with project
+function-deployment privileges.
 
 ## Team security checklist
 
