@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Dialog, Portal } from 'react-native-paper';
 import { ChevronDown, Eye, EyeOff } from 'lucide-react-native';
-import { formatSignupPhone } from '@hydrosense/shared';
+import { ADDRESS_PROVINCES, EMPTY_SIGNUP_ADDRESS, addressBarangays, addressCities, formatSignupPhone } from '@hydrosense/shared';
 import type { PhoneCountryCode } from '@hydrosense/shared';
 import type { RootStackParamList } from './navigation';
 import { Brand, Button, Card, createFormStyles, Page, Title } from './components/ui';
@@ -11,8 +11,8 @@ import { PhoneField } from './components/PhoneField';
 import { useTheme } from './theme';
 import { useSession } from './state';
 import { API_BASE_URL, API_KEY, DATA_MODE } from './services/client';
-import { authenticate, HATCHERY, POSITIONS_BY_ROLE, requestAccount, requestPasswordReset, validateSignIn } from './services/auth';
-import type { RequestedRole, SignUpValues } from './services/auth';
+import { authenticate, HATCHERY, requestAccount, requestPasswordReset, validateSignIn } from './services/auth';
+import type { SignUpValues } from './services/auth';
 
 type Props<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;
 
@@ -46,12 +46,26 @@ function Message({ text }: { text: string }) {
   return text ? <Text accessibilityRole="alert" style={{ color: colors.critical, lineHeight: 20 }}>{text}</Text> : null;
 }
 
-function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function AddressPicker({ label, value, options, disabled, onChange }: { label: string; value: string; options: readonly { id: string; name: string }[]; disabled?: boolean; onChange: (value: string) => void }) {
   const { colors } = useTheme();
-  return <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onPress}
-    style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 22, borderWidth: 1, borderColor: selected ? colors.teal : colors.border, backgroundColor: selected ? colors.selected : colors.surface }}>
-    <Text style={{ color: selected ? colors.teal : colors.ink, fontWeight: '700', fontSize: 13 }}>{label}</Text>
-  </Pressable>;
+  const ui = createFormStyles(colors);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const selected = options.find((option) => option.id === value);
+  return <View style={ui.formField}>
+    <Text style={ui.label}>{label}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${selected?.name ?? 'Select'}`} accessibilityState={{ disabled, expanded: open }} disabled={disabled}
+      onPress={() => { setSearch(''); setOpen(true); }} style={[ui.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: disabled ? 0.5 : 1 }]}>
+      <Text style={{ color: selected ? colors.ink : colors.muted, flex: 1 }}>{selected?.name ?? `Select ${label.toLowerCase()}`}</Text><ChevronDown size={20} color={colors.muted} />
+    </Pressable>
+    <Portal><Dialog visible={open} onDismiss={() => setOpen(false)}>
+      <Dialog.Title>{label}</Dialog.Title><Dialog.Content>
+        <TextInput accessibilityLabel={`Search ${label}`} style={ui.input} value={search} onChangeText={setSearch} placeholder="Search" placeholderTextColor={colors.muted} />
+        <FlatList style={{ height: 300 }} keyboardShouldPersistTaps="handled" data={options.filter((option) => option.name.toLowerCase().includes(search.toLowerCase()))}
+          keyExtractor={(item) => item.id} renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => { onChange(item.id); setOpen(false); }} style={{ padding: 14 }}><Text style={{ color: colors.ink }}>{item.name}</Text></Pressable>} />
+      </Dialog.Content><Dialog.Actions><Button label="Cancel" secondary onPress={() => setOpen(false)} /></Dialog.Actions>
+    </Dialog></Portal>
+  </View>;
 }
 
 export function LoginScreen({ navigation }: Props<'Login'>) {
@@ -101,7 +115,10 @@ export function LoginScreen({ navigation }: Props<'Login'>) {
         <AuthField label="Password" value={password} onChange={setPassword} secure placeholder="Enter your password" />
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => navigation.navigate('ForgotPassword')} style={{ alignSelf: 'flex-end', paddingVertical: 8 }}><Text style={{ color: colors.teal, fontWeight: '700' }}>Forgot password?</Text></Pressable>
         <Button label={busy ? 'Signing in…' : 'Sign In'} disabled={busy} onPress={() => void submit()} />
-        <Button label="Don't have an account? Sign Up" secondary disabled={busy} onPress={() => navigation.navigate('SignUp')} />
+        <Text style={{ color: colors.muted, textAlign: 'center', fontSize: 14 }}>
+          Don't have an account?{' '}
+          <Text accessibilityRole="link" accessibilityState={{ disabled: busy }} onPress={busy ? undefined : () => navigation.navigate('SignUp')} style={{ color: colors.teal, fontWeight: '700' }}>Sign Up</Text>
+        </Text>
       </>}
       <Message text={error} />
     </Card>
@@ -109,8 +126,8 @@ export function LoginScreen({ navigation }: Props<'Login'>) {
 }
 
 const initialValues: SignUpValues = {
-  firstName: '', lastName: '', employeeId: '', phone: '', email: '', requestedRole: 'operator',
-  position: POSITIONS_BY_ROLE.operator[0], hatcheryId: '', address: '', emergencyContactName: '',
+  firstName: '', lastName: '', employeeId: '', phone: '', email: '',
+  hatcheryId: '', address: EMPTY_SIGNUP_ADDRESS, emergencyContactName: '',
   emergencyContactPhone: '', password: '', confirmPassword: '', termsAccepted: false,
 };
 
@@ -127,10 +144,6 @@ export function SignUpScreen({ navigation }: Props<'SignUp'>) {
   const [emergencyCountry, setEmergencyCountry] = useState<PhoneCountryCode>('PH');
   function setField<K extends keyof SignUpValues>(key: K, value: SignUpValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
-    setError('');
-  }
-  function selectRole(role: RequestedRole) {
-    setValues((current) => ({ ...current, requestedRole: role, position: POSITIONS_BY_ROLE[role][0] }));
     setError('');
   }
   async function submit() {
@@ -152,19 +165,12 @@ export function SignUpScreen({ navigation }: Props<'SignUp'>) {
   return <Page auth>
     <Brand />
     <Card>
-      <Title centered detail="Submit your staff details for administrator approval. Your requested role is not active until approved.">Request an account</Title>
-      <Text style={ui.label}>Requested role</Text>
-      <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Choice label="Operator" selected={values.requestedRole === 'operator'} onPress={() => selectRole('operator')} />
-        <Choice label="Manager" selected={values.requestedRole === 'manager'} onPress={() => selectRole('manager')} />
-      </View>
+      <Title centered detail="Submit your staff details for administrator approval. An administrator will assign your role.">Request an account</Title>
       <View style={{ flexDirection: width >= 600 ? 'row' : 'column', gap: 12 }}>
         <View style={{ flex: 1 }}><AuthField label="First name" value={values.firstName} onChange={(v) => setField('firstName', v)} placeholder="First name" /></View>
         <View style={{ flex: 1 }}><AuthField label="Last name" value={values.lastName} onChange={(v) => setField('lastName', v)} placeholder="Last name" /></View>
       </View>
       <AuthField label="Employee / staff ID" value={values.employeeId} onChange={(v) => setField('employeeId', v)} placeholder="e.g. SAG-OP-014" />
-      <Text style={ui.label}>Position</Text>
-      <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{POSITIONS_BY_ROLE[values.requestedRole].map((position) => <Choice key={position} label={position} selected={values.position === position} onPress={() => setField('position', position)} />)}</View>
       <PhoneField label="Contact number" value={values.phone} country={phoneCountry} onChange={(v) => setField('phone', v)} onCountryChange={(country) => { setPhoneCountry(country); setError(''); }} />
       <AuthField label="Work email" value={values.email} onChange={(v) => setField('email', v)} keyboard="email-address" placeholder="name@example.com" />
       <View style={ui.formField}>
@@ -196,7 +202,11 @@ export function SignUpScreen({ navigation }: Props<'SignUp'>) {
           </Pressable>)}
         </View>}
       </View>
-      <AuthField label="Home address" value={values.address} onChange={(v) => setField('address', v)} placeholder="Barangay, municipality, province" />
+      <AddressPicker label="Country" value={values.address.country} options={[{ id: 'PH', name: 'Philippines' }]} onChange={(country) => setField('address', { ...values.address, country, province: '', city: '', barangay: '' })} />
+      <AddressPicker label="Province / region" value={values.address.province} disabled={!values.address.country} options={ADDRESS_PROVINCES} onChange={(province) => setField('address', { ...values.address, province, city: '', barangay: '' })} />
+      <AddressPicker label="City / municipality / district" value={values.address.city} disabled={!values.address.province} options={addressCities(values.address.province)} onChange={(city) => setField('address', { ...values.address, city, barangay: '' })} />
+      <AddressPicker label="Barangay" value={values.address.barangay} disabled={!values.address.city} options={addressBarangays(values.address.city)} onChange={(barangay) => setField('address', { ...values.address, barangay })} />
+      <AuthField label="Street address" value={values.address.street} onChange={(street) => setField('address', { ...values.address, street })} placeholder="House number and street" />
       <AuthField label="Emergency contact name" value={values.emergencyContactName} onChange={(v) => setField('emergencyContactName', v)} placeholder="Full name" />
       <PhoneField label="Emergency contact number" value={values.emergencyContactPhone} country={emergencyCountry} onChange={(v) => setField('emergencyContactPhone', v)} onCountryChange={(country) => { setEmergencyCountry(country); setError(''); }} />
       <AuthField label="Password" value={values.password} onChange={(v) => setField('password', v)} secure placeholder="At least 8 characters" />

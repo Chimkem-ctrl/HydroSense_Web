@@ -20,8 +20,8 @@ WebSocket stream is configured; this is not a live-stream status.
 The default is API mode, using the deployed Supabase API and publishable key
 also configured in the web app. Mobile sign-in and account requests use the
 backend's `/v1/auth/signin` and `/v1/auth/signup` routes. Account requests
-remain pending until an administrator approves them; the requested role is not
-automatically granted. Configure the web app in API mode against the same
+remain pending until an administrator chooses an Operator, Manager or Admin
+role and approves them. Configure the web app in API mode against the same
 Supabase project to use the same accounts. Its default browser-only demo
 accounts are not backend accounts and cannot be shared with mobile.
 
@@ -65,8 +65,14 @@ but push-token registration and delivery require backend integration.
 
 The Operator home supports monitoring, alerts, calibration and field entries.
 Managers additionally get history, threshold editing and a read-only validation
-review. Admins get those features and a read-only account/audit overview.
+review. Admins can approve or reject pending accounts in API mode and view an
+account/audit overview. Account review is unavailable in mobile demo mode.
 These are example mobile views, not complete web feature parity:
-account approval and management, tolerance editing, full reporting and other
+other account management, tolerance editing, full reporting and other
 web features remain on the web. UI route restrictions are not a security
 boundary; the backend must independently enforce every required permission.
+
+Deploy the updated Supabase API function before using the updated signup and
+approval flows; older deployments expect a requested role and a text address.
+Addresses use the Philippine PSGC dataset, including region selections for
+independent areas, and are saved as a readable profile address.

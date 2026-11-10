@@ -1,3 +1,4 @@
+import { formatSignupAddress } from '@hydrosense/shared';
 import type { Role } from '@hydrosense/shared';
 import { DATA_MODE } from '../app/config';
 import type {
@@ -21,20 +22,6 @@ export const SUBSCRIBED_HATCHERIES = [
     name: 'Camiguin, Sagay Multispecies Hatchery',
   },
 ] as const;
-
-export const POSITIONS_BY_ROLE: Record<RequestedRole, readonly string[]> = {
-  operator: [
-    'Hatchery Operator',
-    'Senior Operator',
-    'Water Quality Technician',
-    'Shift Supervisor',
-  ],
-  manager: [
-    'Hatchery Manager',
-    'Operations Manager',
-    'Site Manager',
-  ],
-};
 
 export const DEMO_ADMIN_CREDENTIALS = {
   email: import.meta.env.VITE_ADMIN_EMAIL?.trim() || 'hydrosense.team@admin.com',
@@ -79,11 +66,11 @@ async function listApiAdminProfiles(status: 'pending' | 'approved'): Promise<Aut
   if (!response.ok) throw new Error(profiles.error ?? 'Unable to load users.');
   return (profiles as Array<Record<string, unknown>>).map((profile) => ({
     id: String(profile.id),
-    firstName: String(profile.firstName ?? '').split(' ')[0] ?? '',
-    lastName: String(profile.firstName ?? '').split(' ').slice(1).join(' ') ?? '',
+    firstName: String(profile.firstName ?? ''),
+    lastName: String(profile.lastName ?? ''),
     email: String(profile.email ?? ''),
     role: profile.role as Role,
-    requestedRole: null,
+    requestedRole: isRequestedRole(profile.requestedRole) ? profile.requestedRole : null,
     status,
     position: profile.position as string | undefined,
     employeeId: profile.employeeId as string | undefined,
@@ -91,11 +78,12 @@ async function listApiAdminProfiles(status: 'pending' | 'approved'): Promise<Aut
     address: profile.address as string | undefined,
     emergencyContactName: profile.emergencyContactName as string | undefined,
     emergencyContactPhone: profile.emergencyContactPhone as string | undefined,
-    createdAt: new Date().toISOString(),
+    hatcheryId: profile.site as string | undefined,
+    createdAt: String(profile.createdAt ?? ''),
   }));
 }
 
-async function updateApiProfile(userId: string, status: AccountStatus, role: RequestedRole | null): Promise<AuthUser> {
+async function updateApiProfile(userId: string, status: AccountStatus, role: Role | null): Promise<AuthUser> {
   const token = window.localStorage.getItem('hydrosense.auth.access-token');
   const response = await fetch(`${SUPABASE_URL}/functions/v1/api/v1/admin/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
@@ -107,11 +95,10 @@ async function updateApiProfile(userId: string, status: AccountStatus, role: Req
     body: JSON.stringify({
       status,
       role,
-      requested_role: role,
     }),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.message ?? 'Unable to update account request.');
+  if (!response.ok) throw new Error(result.error ?? result.message ?? 'Unable to update account request.');
   const profile = Array.isArray(result) ? result[0] : result;
   return {
     id: String(profile.id),
@@ -159,7 +146,7 @@ function isStoredAccount(value: unknown): value is StoredAccount {
     return false;
   }
   const roleMatchesStatus = user.status === 'approved'
-    ? user.role === 'operator' || user.role === 'manager'
+    ? user.role === 'operator' || user.role === 'manager' || user.role === 'admin'
     : user.role === null;
   return typeof user.id === 'string' &&
     typeof user.firstName === 'string' &&
@@ -167,8 +154,8 @@ function isStoredAccount(value: unknown): value is StoredAccount {
     typeof user.email === 'string' &&
     typeof user.status === 'string' &&
     ['pending', 'approved', 'rejected'].includes(user.status) &&
-    (user.role === null || user.role === 'operator' || user.role === 'manager') &&
-    isRequestedRole(user.requestedRole) &&
+    (user.role === null || user.role === 'operator' || user.role === 'manager' || user.role === 'admin') &&
+    (user.requestedRole === null || isRequestedRole(user.requestedRole)) &&
     roleMatchesStatus &&
     typeof user.createdAt === 'string';
 }
@@ -324,9 +311,15 @@ export const authService = {
         },
       });
       const profiles = await profileResponse.json();
+      if (!profileResponse.ok) throw new Error(profiles.message ?? 'Unable to load your account status.');
       const profile = Array.isArray(profiles) ? profiles[0] : undefined;
-      if (!profile || profile.status !== 'approved' || !profile.role) {
+      if (!profile) throw new Error('Your account profile was not found.');
+      if (profile.status === 'rejected') throw new Error('Request not approved.');
+      if (profile.status === 'pending') {
         return { status: 'pending', redirectPath: '/pending-approval' };
+      }
+      if (profile.status !== 'approved' || !['operator', 'manager', 'admin'].includes(profile.role)) {
+        throw new Error('This account does not have a valid approved role.');
       }
 
       const user: AuthUser = {
@@ -379,6 +372,8 @@ export const authService = {
   },
 
   async signUp(values: SignUpValues): Promise<AuthResult> {
+    const address = formatSignupAddress(values.address);
+    if (!address) throw new Error('Select a valid country, province, city and barangay, and enter a street address.');
     if (DATA_MODE === 'api') {
       if (!API_KEY) throw new Error('Supabase publishable key is not configured.');
       const supabaseUrl = SUPABASE_URL;
@@ -392,13 +387,11 @@ export const authService = {
         body: JSON.stringify({
           email: values.email.trim().toLowerCase(),
           password: values.password,
-          requestedRole: values.requestedRole,
           firstName: values.firstName.trim(),
           lastName: values.lastName.trim(),
-          position: values.position.trim(),
           employeeId: values.employeeId.trim(),
           phone: values.phone.trim(),
-          address: values.address.trim(),
+          address: values.address,
           emergencyContactName: values.emergencyContactName.trim(),
           emergencyContactPhone: values.emergencyContactPhone.trim(),
           hatcheryId: values.hatcheryId,
@@ -412,12 +405,6 @@ export const authService = {
         throw new Error(result.error ?? result.msg ?? 'Unable to create account.');
       }
       return { status: 'pending', redirectPath: '/pending-approval' };
-    }
-    if (!isRequestedRole(values.requestedRole)) {
-      throw new Error('Select Operator or Manager as your requested role.');
-    }
-    if (!POSITIONS_BY_ROLE[values.requestedRole].includes(values.position)) {
-      throw new Error('Select a position available for your requested role.');
     }
     const normalizedEmail = values.email.trim().toLowerCase();
     const accounts = readAccounts();
@@ -437,13 +424,12 @@ export const authService = {
       lastName: values.lastName.trim(),
       email: normalizedEmail,
       role: null,
-      requestedRole: values.requestedRole,
+      requestedRole: null,
       status: 'pending',
       employeeId: values.employeeId.trim(),
       phone: values.phone.trim(),
-      position: values.position.trim(),
       hatcheryId: values.hatcheryId,
-      address: values.address.trim(),
+      address,
       emergencyContactName: values.emergencyContactName.trim(),
       emergencyContactPhone: values.emergencyContactPhone.trim(),
       createdAt: new Date().toISOString(),
@@ -458,27 +444,24 @@ export const authService = {
     return { status: 'pending', redirectPath: '/pending-approval' };
   },
 
-  listPendingRequests(): PendingRequest[] {
+  async listPendingRequests(): Promise<PendingRequest[]> {
     assertAdmin();
     if (DATA_MODE === 'api') {
-      return listApiAdminProfiles('pending').then((users) =>
-        users.filter((user): user is PendingRequest =>
-          user.status === 'pending' && user.role === null && user.requestedRole !== null),
-      ) as unknown as PendingRequest[];
+      const users = await listApiAdminProfiles('pending');
+      return users.filter((user): user is PendingRequest => user.status === 'pending' && user.role === null);
     }
     return readAccounts()
       .map(({ user }) => user)
-      .filter((user): user is PendingRequest => user.status === 'pending' && user.role === null && user.requestedRole !== null)
+      .filter((user): user is PendingRequest => user.status === 'pending' && user.role === null)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   },
 
-  listApprovedUsers(): Array<AuthUser & { role: Role; status: 'approved' }> {
+  async listApprovedUsers(): Promise<Array<AuthUser & { role: Role; status: 'approved' }>> {
     assertAdmin();
     if (DATA_MODE === 'api') {
-      return listApiAdminProfiles('approved').then((users) =>
-        users.filter((user): user is AuthUser & { role: Role; status: 'approved' } =>
-          user.status === 'approved' && user.role !== null),
-      ) as unknown as Array<AuthUser & { role: Role; status: 'approved' }>;
+      const users = await listApiAdminProfiles('approved');
+      return users.filter((user): user is AuthUser & { role: Role; status: 'approved' } =>
+        user.status === 'approved' && user.role !== null);
     }
     return [
       { ...adminUser },
@@ -488,7 +471,7 @@ export const authService = {
     ];
   },
 
-  updateApprovedUserRole(userId: string, role: Role): AuthUser {
+  async updateApprovedUserRole(userId: string, role: Role): Promise<AuthUser> {
     assertAdmin();
     if (!validReviewRole(role)) {
       throw new Error('Users may only be assigned the Operator or Manager role.');
@@ -496,7 +479,7 @@ export const authService = {
     if (userId === ADMIN_ID) {
       throw new Error('The administrator role cannot be changed.');
     }
-    if (DATA_MODE === 'api') return updateApiProfile(userId, 'approved', role) as unknown as AuthUser;
+    if (DATA_MODE === 'api') throw new Error('Use the role management API for approved accounts.');
     const accounts = readAccounts();
     const index = accounts.findIndex((account) => account.user.id === userId);
     if (index < 0 || accounts[index].user.status !== 'approved') {
@@ -524,12 +507,12 @@ export const authService = {
     notifyAuthChanged();
   },
 
-  approveRequest(userId: string, role: Role): AuthUser {
+  async approveRequest(userId: string, role: Role): Promise<AuthUser> {
     assertAdmin();
-    if (!validReviewRole(role)) {
-      throw new Error('Account requests can only be approved as Operator or Manager.');
+    if (role !== 'operator' && role !== 'manager' && role !== 'admin') {
+      throw new Error('Select an approval role.');
     }
-    if (DATA_MODE === 'api') return updateApiProfile(userId, 'approved', role) as unknown as AuthUser;
+    if (DATA_MODE === 'api') return updateApiProfile(userId, 'approved', role);
     const accounts = readAccounts();
     const index = accounts.findIndex((account) => account.user.id === userId);
     if (index < 0 || accounts[index].user.status !== 'pending') {
@@ -543,9 +526,9 @@ export const authService = {
     return { ...user };
   },
 
-  rejectRequest(userId: string): AuthUser {
+  async rejectRequest(userId: string): Promise<AuthUser> {
     assertAdmin();
-    if (DATA_MODE === 'api') return updateApiProfile(userId, 'rejected', null) as unknown as AuthUser;
+    if (DATA_MODE === 'api') return updateApiProfile(userId, 'rejected', null);
     const accounts = readAccounts();
     const index = accounts.findIndex((account) => account.user.id === userId);
     if (index < 0 || accounts[index].user.status !== 'pending') {

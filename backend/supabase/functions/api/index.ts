@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getAddressByBarangayCode } from "npm:@aivangogh/ph-address@2026.2.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,9 +30,29 @@ Deno.serve(async (request) => {
 
   if (action === "/v1/auth/signup" && request.method === "POST") {
     const body = await request.json();
-    if (!["operator", "manager"].includes(body.requestedRole)) {
-      return json({ error: "Requested role must be operator or manager." }, 400);
+    const required = ["firstName", "lastName", "employeeId", "phone", "email", "emergencyContactName", "emergencyContactPhone"];
+    if (required.some((key) => typeof body[key] !== "string" || !body[key].trim()) ||
+        typeof body.password !== "string" || body.password.length < 8 ||
+        body.hatcheryId !== "camiguin-sagay" ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) ||
+        !/^[+()\d\s.-]{7,20}$/.test(body.phone.trim()) ||
+        !/^[+()\d\s.-]{7,20}$/.test(body.emergencyContactPhone.trim())) {
+      return json({ error: "Complete all required fields with valid contact details and a password of at least 8 characters." }, 400);
     }
+    const address = body.address;
+    if (!address || address.country !== "PH" || typeof address.street !== "string" || !address.street.trim() ||
+        typeof address.barangay !== "string" || typeof address.city !== "string" || typeof address.province !== "string") {
+      return json({ error: "A complete Philippine address is required." }, 400);
+    }
+    const location = getAddressByBarangayCode(address.barangay);
+    if (!location || location.municipality.psgcCode !== address.city ||
+        (location.province?.psgcCode ?? location.region.psgcCode) !== address.province) {
+      return json({ error: "Select a valid province, city and barangay." }, 400);
+    }
+    const cityName = location.municipality.provinceCode === "1380600000"
+      ? `Manila - ${location.municipality.name}` : location.municipality.name;
+    const formattedAddress = [address.street.trim(), location.barangay.name, cityName,
+      location.province?.name ?? location.region.name, "Philippines"].join(", ");
     const { data, error } = await admin.auth.admin.createUser({
       email: body.email,
       password: body.password,
@@ -39,11 +60,9 @@ Deno.serve(async (request) => {
       user_metadata: {
         firstName: body.firstName,
         lastName: body.lastName,
-        requestedRole: body.requestedRole,
-        position: body.position,
         employeeId: body.employeeId,
         phone: body.phone,
-        address: body.address,
+        address: formattedAddress,
         emergencyContactName: body.emergencyContactName,
         emergencyContactPhone: body.emergencyContactPhone,
         hatcheryId: body.hatcheryId,
@@ -515,10 +534,11 @@ Deno.serve(async (request) => {
   }
 
   if (action === "/v1/admin/users" && request.method === "GET") {
-    if (!["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
+    if (!profile || profile.status !== "approved" || !["manager", "admin"].includes(profile.role)) return json({ error: "Forbidden." }, 403);
     const status = url.searchParams.get("status");
-    let query = admin.from("profiles").select("*").order("created_at", { ascending: false });
-    if (status) query = query.eq("status", status);
+    if (status && !["pending", "approved", "rejected"].includes(status)) return json({ error: "Invalid account status." }, 400);
+    if (profile.role !== "admin" && status && status !== "approved") return json({ error: "Forbidden." }, 403);
+    const query = admin.from("profiles").select("*").order("created_at", { ascending: false }).eq("status", status ?? "approved");
     const { data, error } = await query;
     if (error) return json({ error: error.message }, 500);
     return json(data?.map((user) => ({
@@ -532,15 +552,19 @@ Deno.serve(async (request) => {
 
   const adminUserUpdate = action.match(/^\/v1\/admin\/users\/([^/]+)$/);
   if (adminUserUpdate && request.method === "PATCH") {
-    if (profile.role !== "admin") return json({ error: "Forbidden." }, 403);
+    if (profile?.role !== "admin" || profile.status !== "approved") return json({ error: "Forbidden." }, 403);
     const body = await request.json();
+    if (!((body.status === "approved" && ["operator", "manager", "admin"].includes(body.role)) ||
+      (body.status === "rejected" && body.role === null))) {
+      return json({ error: "Select a valid approval role or reject the request." }, 400);
+    }
     const updates = {
       status: body.status,
       role: body.role,
-      requested_role: body.role,
     };
-    const { data, error } = await admin.from("profiles").update(updates).eq("id", decodeURIComponent(adminUserUpdate[1])).select().single();
+    const { data, error } = await admin.from("profiles").update(updates).eq("id", decodeURIComponent(adminUserUpdate[1])).eq("status", "pending").select().maybeSingle();
     if (error) return json({ error: error.message }, 400);
+    if (!data) return json({ error: "Pending account request was not found." }, 404);
     return json({
       id: data.id,
       first_name: data.first_name,

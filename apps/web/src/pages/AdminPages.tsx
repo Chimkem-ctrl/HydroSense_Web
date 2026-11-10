@@ -3,10 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatManilaDateTime } from '@hydrosense/shared';
 import type { DashboardUser, Role } from '@hydrosense/shared';
 import { api } from '../app/api';
-import { ROLE_LABELS, tierConfig } from '../app/config';
+import { tierConfig } from '../app/config';
 import { useRole } from '../app/auth/RoleContext';
 import { authService, SUBSCRIBED_HATCHERIES } from '../services/authService';
-import type { RequestedRole } from '../types/auth.types';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
 
@@ -40,7 +39,7 @@ export function AdminUsersPage() {
     enabled: tierConfig.teamAccounts,
   });
   const pendingRequests = useQuery({ queryKey: ['pending-requests'], queryFn: () => authService.listPendingRequests() });
-  const [selectedRoles, setSelectedRoles] = useState<Record<string, RequestedRole>>({});
+  const [selectedRoles, setSelectedRoles] = useState<Record<string, Role | undefined>>({});
   const mutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: Exclude<Role, 'admin'> }) => {
       if (userId.startsWith('account-')) {
@@ -54,7 +53,7 @@ export function AdminUsersPage() {
     },
   });
   const approveRequest = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: RequestedRole }) => authService.approveRequest(userId, role),
+    mutationFn: async ({ userId, role }: { userId: string; role: Role }) => authService.approveRequest(userId, role),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['pending-requests'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -80,24 +79,22 @@ export function AdminUsersPage() {
       <section className="card">
         <h2 className="card-title">Pending requests</h2>
         {pendingRequests.isLoading ? <LoadingState /> : pendingRequests.isError ? <ErrorState error={pendingRequests.error} onRetry={() => void pendingRequests.refetch()} /> : !pendingRequests.data?.length ? <EmptyState>No account requests are awaiting review.</EmptyState> : (
-          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Employee ID</th><th>Position</th><th>Hatchery</th><th>Requested role</th><th>Date</th><th>Review</th></tr></thead><tbody>
+          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Employee ID</th><th>Hatchery</th><th>Date</th><th>Review</th></tr></thead><tbody>
             {pendingRequests.data.map((request) => (
               <tr key={request.id}>
                 <td>{request.firstName} {request.lastName}</td>
                 <td>{request.email}</td>
                 <td>{request.employeeId ?? '—'}</td>
-                <td>{request.position ?? '—'}</td>
                 <td>{SUBSCRIBED_HATCHERIES.find((hatchery) => hatchery.id === request.hatcheryId)?.name ?? '—'}</td>
-                <td>{ROLE_LABELS[request.requestedRole]}</td>
                 <td>{formatManilaDateTime(request.createdAt)} PHT</td>
                 <td>
                   <div className="inline">
                     <label className="field"><span className="sr-only">Approval role for {request.firstName} {request.lastName}</span>
-                      <select value={selectedRoles[request.id] ?? request.requestedRole} onChange={(event) => setSelectedRoles((roles) => ({ ...roles, [request.id]: event.target.value as RequestedRole }))}>
-                        <option value="operator">Operator</option><option value="manager">Manager</option>
+                      <select value={selectedRoles[request.id] ?? ''} onChange={(event) => setSelectedRoles((roles) => ({ ...roles, [request.id]: (event.target.value || undefined) as Role | undefined }))}>
+                        <option value="">Select role</option><option value="operator">Operator</option><option value="manager">Manager</option><option value="admin">Admin</option>
                       </select>
                     </label>
-                    <button type="button" className="button button-primary" disabled={approveRequest.isPending || rejectRequest.isPending} onClick={() => approveRequest.mutate({ userId: request.id, role: selectedRoles[request.id] ?? request.requestedRole })}>Approve</button>
+                    <button type="button" className="button button-primary" disabled={approveRequest.isPending || rejectRequest.isPending || !selectedRoles[request.id]} onClick={() => { const role = selectedRoles[request.id]; if (role) approveRequest.mutate({ userId: request.id, role }); }}>Approve</button>
                     <button type="button" className="button" disabled={approveRequest.isPending || rejectRequest.isPending} onClick={() => {
                       if (window.confirm(`Reject the account request for ${request.firstName} ${request.lastName}?`)) rejectRequest.mutate(request.id);
                     }}>Reject</button>
