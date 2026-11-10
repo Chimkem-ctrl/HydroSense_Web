@@ -83,6 +83,16 @@ describe('mobile account request', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('requires a subscribed hatchery before sending a request', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    for (const hatcheryId of ['', 'unknown']) {
+      await expect(requestAccount('https://example.test', 'key', { ...signup, hatcheryId }))
+        .rejects.toThrow('Select your subscribed hatchery.');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('surfaces backend errors and requires confirmation of pending status', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Email already registered' }), { status: 400 }))
