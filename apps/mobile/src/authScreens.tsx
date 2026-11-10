@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Dialog, Portal } from 'react-native-paper';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { ChevronDown, Eye, EyeOff } from 'lucide-react-native';
+import { formatSignupPhone } from '@hydrosense/shared';
+import type { PhoneCountryCode } from '@hydrosense/shared';
 import type { RootStackParamList } from './navigation';
 import { Brand, Button, Card, createFormStyles, Page, Title } from './components/ui';
+import { PhoneField } from './components/PhoneField';
 import { useTheme } from './theme';
 import { useSession } from './state';
 import { API_BASE_URL, API_KEY, DATA_MODE } from './services/client';
@@ -119,6 +122,9 @@ export function SignUpScreen({ navigation }: Props<'SignUp'>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showTerms, setShowTerms] = useState(false);
+  const [hatcheryOpen, setHatcheryOpen] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState<PhoneCountryCode>('PH');
+  const [emergencyCountry, setEmergencyCountry] = useState<PhoneCountryCode>('PH');
   function setField<K extends keyof SignUpValues>(key: K, value: SignUpValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
     setError('');
@@ -131,7 +137,11 @@ export function SignUpScreen({ navigation }: Props<'SignUp'>) {
     setError('');
     setBusy(true);
     try {
-      await requestAccount(API_BASE_URL, API_KEY, values);
+      const phone = formatSignupPhone(phoneCountry, values.phone);
+      const emergencyContactPhone = formatSignupPhone(emergencyCountry, values.emergencyContactPhone);
+      if (values.phone.trim() && !phone) throw new Error('Enter a valid national contact number for the selected country.');
+      if (values.emergencyContactPhone.trim() && !emergencyContactPhone) throw new Error('Enter a valid national emergency contact number for the selected country.');
+      await requestAccount(API_BASE_URL, API_KEY, { ...values, phone: phone ?? '', emergencyContactPhone: emergencyContactPhone ?? '' });
       navigation.replace('PendingApproval');
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Something went wrong. Please try again.');
@@ -155,13 +165,40 @@ export function SignUpScreen({ navigation }: Props<'SignUp'>) {
       <AuthField label="Employee / staff ID" value={values.employeeId} onChange={(v) => setField('employeeId', v)} placeholder="e.g. SAG-OP-014" />
       <Text style={ui.label}>Position</Text>
       <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{POSITIONS_BY_ROLE[values.requestedRole].map((position) => <Choice key={position} label={position} selected={values.position === position} onPress={() => setField('position', position)} />)}</View>
-      <AuthField label="Contact number" value={values.phone} onChange={(v) => setField('phone', v)} keyboard="phone-pad" placeholder="+63 9XX XXX XXXX" />
+      <PhoneField label="Contact number" value={values.phone} country={phoneCountry} onChange={(v) => setField('phone', v)} onCountryChange={(country) => { setPhoneCountry(country); setError(''); }} />
       <AuthField label="Work email" value={values.email} onChange={(v) => setField('email', v)} keyboard="email-address" placeholder="name@example.com" />
-      <Text style={ui.label}>Subscribed hatchery</Text>
-      <Button label={HATCHERY.name} secondary={values.hatcheryId !== HATCHERY.id} onPress={() => setField('hatcheryId', HATCHERY.id)} />
+      <View style={ui.formField}>
+        <Text style={ui.label}>Subscribed hatchery</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Subscribed hatchery: ${values.hatcheryId ? HATCHERY.name : 'Select a subscribed hatchery'}`}
+          accessibilityValue={{ text: values.hatcheryId ? HATCHERY.name : 'Select a subscribed hatchery' }}
+          accessibilityState={{ expanded: hatcheryOpen }}
+          aria-expanded={hatcheryOpen}
+          onPress={() => setHatcheryOpen((open) => !open)}
+          style={[ui.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }]}
+        >
+          <Text style={{ color: values.hatcheryId ? colors.ink : colors.muted, fontSize: 16, flex: 1 }}>
+            {values.hatcheryId ? HATCHERY.name : 'Select a subscribed hatchery'}
+          </Text>
+          <ChevronDown size={20} color={colors.muted} />
+        </Pressable>
+        {hatcheryOpen && <View accessibilityRole="radiogroup" accessibilityLabel="Subscribed hatchery options" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 12, overflow: 'hidden' }}>
+          {[{ id: '', name: 'Select a subscribed hatchery' }, HATCHERY].map((hatchery) => <Pressable
+            key={hatchery.id}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: values.hatcheryId === hatchery.id }}
+            aria-checked={values.hatcheryId === hatchery.id}
+            onPress={() => { setField('hatcheryId', hatchery.id); setHatcheryOpen(false); }}
+            style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: values.hatcheryId === hatchery.id ? colors.selected : colors.surface }}
+          >
+            <Text style={{ color: values.hatcheryId === hatchery.id ? colors.teal : colors.ink, fontSize: 15 }}>{hatchery.name}</Text>
+          </Pressable>)}
+        </View>}
+      </View>
       <AuthField label="Home address" value={values.address} onChange={(v) => setField('address', v)} placeholder="Barangay, municipality, province" />
       <AuthField label="Emergency contact name" value={values.emergencyContactName} onChange={(v) => setField('emergencyContactName', v)} placeholder="Full name" />
-      <AuthField label="Emergency contact number" value={values.emergencyContactPhone} onChange={(v) => setField('emergencyContactPhone', v)} keyboard="phone-pad" placeholder="+63 9XX XXX XXXX" />
+      <PhoneField label="Emergency contact number" value={values.emergencyContactPhone} country={emergencyCountry} onChange={(v) => setField('emergencyContactPhone', v)} onCountryChange={(country) => { setEmergencyCountry(country); setError(''); }} />
       <AuthField label="Password" value={values.password} onChange={(v) => setField('password', v)} secure placeholder="At least 8 characters" />
       <AuthField label="Confirm password" value={values.confirmPassword} onChange={(v) => setField('confirmPassword', v)} secure placeholder="Re-enter your password" />
       <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>

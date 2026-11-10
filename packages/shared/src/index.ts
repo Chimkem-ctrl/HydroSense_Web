@@ -1,5 +1,6 @@
 export * from './types';
 export * from './activity';
+export * from './phone';
 export * from './reports';
 export * from './rules/status';
 export * from './rules/advisory';

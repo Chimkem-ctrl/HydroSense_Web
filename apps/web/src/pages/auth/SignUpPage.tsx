@@ -1,10 +1,13 @@
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
+import { formatSignupPhone } from '@hydrosense/shared';
+import type { PhoneCountryCode } from '@hydrosense/shared';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthFooter from '../../components/auth/AuthFooter';
 import AuthHeader from '../../components/auth/AuthHeader';
 import AuthLayout from '../../components/auth/AuthLayout';
 import PasswordInput from '../../components/auth/PasswordInput';
+import PhoneField from '../../components/auth/PhoneField';
 import FormInput from '../../components/common/FormInput';
 import GlassPanel from '../../components/common/GlassPanel';
 import PrimaryButton from '../../components/common/PrimaryButton';
@@ -29,15 +32,14 @@ const initialValues: SignUpValues = {
   termsAccepted: false,
 };
 
-function validate(values: SignUpValues) {
+function validate(values: SignUpValues, phoneCountry: PhoneCountryCode, emergencyCountry: PhoneCountryCode) {
   const errors: Partial<Record<keyof SignUpValues, string>> = {};
-  const validPhone = /^[+()\d\s.-]{7,20}$/;
 
   if (!values.firstName.trim()) errors.firstName = 'First name is required.';
   if (!values.lastName.trim()) errors.lastName = 'Last name is required.';
   if (!values.employeeId.trim()) errors.employeeId = 'Staff or employee ID is required.';
   if (!values.phone.trim()) errors.phone = 'Contact number is required.';
-  else if (!validPhone.test(values.phone.trim())) errors.phone = 'Enter a valid contact number.';
+  else if (!formatSignupPhone(phoneCountry, values.phone)) errors.phone = 'Enter a valid national contact number for the selected country.';
   if (!values.email.trim()) errors.email = 'Email is required.';
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
     errors.email = 'Enter a valid email address.';
@@ -55,8 +57,8 @@ function validate(values: SignUpValues) {
   }
   if (!values.emergencyContactPhone.trim()) {
     errors.emergencyContactPhone = 'Emergency contact number is required.';
-  } else if (!validPhone.test(values.emergencyContactPhone.trim())) {
-    errors.emergencyContactPhone = 'Enter a valid emergency contact number.';
+  } else if (!formatSignupPhone(emergencyCountry, values.emergencyContactPhone)) {
+    errors.emergencyContactPhone = 'Enter a valid national emergency contact number for the selected country.';
   }
   if (!values.password) errors.password = 'Password is required.';
   else if (values.password.length < 8) errors.password = 'Use at least 8 characters.';
@@ -73,12 +75,17 @@ function validate(values: SignUpValues) {
 
 export default function SignUpPage() {
   const [showTerms, setShowTerms] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState<PhoneCountryCode>('PH');
+  const [emergencyCountry, setEmergencyCountry] = useState<PhoneCountryCode>('PH');
   const navigate = useNavigate();
   const form = useAuthForm({
     initialValues,
-    validate,
+    validate: (values) => validate(values, phoneCountry, emergencyCountry),
     onSubmit: async (values) => {
-      const result = await authService.signUp(values);
+      const phone = formatSignupPhone(phoneCountry, values.phone);
+      const emergencyContactPhone = formatSignupPhone(emergencyCountry, values.emergencyContactPhone);
+      if (!phone || !emergencyContactPhone) throw new Error('Enter valid phone numbers for the selected countries.');
+      const result = await authService.signUp({ ...values, phone, emergencyContactPhone });
       navigate(result.redirectPath, { replace: true });
     },
   });
@@ -161,16 +168,14 @@ export default function SignUpPage() {
                 </select>
                 {form.errors.position && <span className="field-error" role="alert">{form.errors.position}</span>}
               </div>
-              <FormInput
+              <PhoneField
                 label="Contact number"
                 name="phone"
-                type="tel"
-                placeholder="+63 9XX XXX XXXX"
-                autoComplete="tel"
                 value={form.values.phone}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => form.setField('phone', event.target.value)}
+                country={phoneCountry}
+                onCountryChange={(country) => { setPhoneCountry(country); form.setField('phone', form.values.phone); }}
+                onChange={(value) => form.setField('phone', value)}
                 error={form.errors.phone}
-                required
               />
               <FormInput
                 label="Work email"
@@ -223,16 +228,14 @@ export default function SignUpPage() {
                 error={form.errors.emergencyContactName}
                 required
               />
-              <FormInput
+              <PhoneField
                 label="Emergency contact number"
                 name="emergencyContactPhone"
-                type="tel"
-                placeholder="+63 9XX XXX XXXX"
-                autoComplete="off"
                 value={form.values.emergencyContactPhone}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => form.setField('emergencyContactPhone', event.target.value)}
+                country={emergencyCountry}
+                onCountryChange={(country) => { setEmergencyCountry(country); form.setField('emergencyContactPhone', form.values.emergencyContactPhone); }}
+                onChange={(value) => form.setField('emergencyContactPhone', value)}
                 error={form.errors.emergencyContactPhone}
-                required
               />
               <PasswordInput
                 label="Password"
