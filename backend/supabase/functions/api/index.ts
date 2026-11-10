@@ -139,6 +139,49 @@ Deno.serve(async (request) => {
     }).select("id,timestamp").single();
     if (error) return json({ error: error.message }, 400);
 
+    const { data: thresholds } = await admin.from("thresholds").select("*");
+    const checkAndCreateAlert = async (parameter: string, value: number, thresholdRow: { min_value?: number; max_value?: number } | undefined) => {
+      if (!thresholdRow || value === null) return;
+      const min = thresholdRow.min_value;
+      const max = thresholdRow.max_value;
+      const violated = (min !== null && value < min) || (max !== null && value > max);
+      if (!violated) return;
+
+      const { data: recentAlert } = await admin
+        .from("alerts")
+        .select("id")
+        .eq("tank_id", tank.id)
+        .eq("parameter", parameter)
+        .eq("status", "open")
+        .maybeSingle();
+      if (recentAlert) return;
+
+      const thresholdStr = [
+        min !== null && min !== undefined ? `>${min}` : null,
+        max !== null && max !== undefined ? `<${max}` : null,
+      ].filter(Boolean).join(" or ");
+
+      const severity = Math.abs(value - (min ?? max ?? 0)) > 2 ? "critical" : "warning";
+      await admin.from("alerts").insert({
+        tank_id: tank.id,
+        parameter,
+        value,
+        threshold: thresholdStr || "configured",
+        severity,
+        status: "open",
+      });
+    };
+
+    const temperatureThreshold = thresholds?.find((t) => t.parameter === "temperature");
+    const doThreshold = thresholds?.find((t) => t.parameter === "do");
+    const phThreshold = thresholds?.find((t) => t.parameter === "ph");
+
+    await Promise.all([
+      checkAndCreateAlert("temperature", temperature, temperatureThreshold),
+      checkAndCreateAlert("do", doMgL, doThreshold),
+      checkAndCreateAlert("ph", ph, phThreshold),
+    ]);
+
     const wifiRssi = optionalNumber(reading.wifiRssi);
     const batteryPct = optionalNumber(reading.batteryPct);
     await admin.from("device_statuses").upsert({
