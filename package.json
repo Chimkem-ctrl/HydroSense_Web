@@ -16,8 +16,5 @@
     "typecheck": "npm run build --workspace @hydrosense/shared && npm run typecheck --workspace @hydrosense/web && npm run typecheck --workspace @hydrosense/mobile",
     "test": "npm run test --workspace @hydrosense/shared && npm run test --workspace @hydrosense/web",
     "test:watch": "npm run test:watch --workspace @hydrosense/web"
-  },
-  "dependencies": {
-    "react-native-paper": "^5.15.4"
   }
 }
