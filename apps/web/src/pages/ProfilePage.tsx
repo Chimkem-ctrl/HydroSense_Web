@@ -5,13 +5,15 @@ import { SUBSCRIBED_HATCHERIES } from '../services/authService';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState } from '../components/common/States';
 import { AlertPreferencesPanel } from '../components/settings/AlertPreferencesPanel';
+   import { AppearancePanel } from '../components/settings/AppearancePanel';
 
-type ProfileTab = 'details' | 'alerts';
+type ProfileTab = 'details' | 'alerts' | 'appearance';
 
 export default function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: ProfileTab = searchParams.get('tab') === 'alerts' ? 'alerts' : 'details';
-  const selectTab = (next: ProfileTab) => setSearchParams(next === 'alerts' ? { tab: 'alerts' } : {}, { replace: true });
+  const tabParam = searchParams.get('tab');
+  const tab: ProfileTab = tabParam === 'alerts' || tabParam === 'appearance' ? tabParam : 'details';
+  const selectTab = (next: ProfileTab) => setSearchParams(next === 'details' ? {} : { tab: next }, { replace: true });
   const { role, userName } = useRole();
   const user = useAuth();
   const hatcheryName = user?.hatcheryId
@@ -23,8 +25,9 @@ export default function ProfilePage() {
       <div className="tabs" role="tablist" aria-label="Profile sections">
         <button type="button" role="tab" className="tab" aria-selected={tab === 'details'} onClick={() => selectTab('details')}>Details</button>
         <button type="button" role="tab" className="tab" aria-selected={tab === 'alerts'} onClick={() => selectTab('alerts')}>Alert preferences</button>
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'appearance'} onClick={() => selectTab('appearance')}>Appearance</button>
       </div>
-      {tab === 'alerts' ? <AlertPreferencesPanel /> : !user ? <EmptyState>Profile details are not available for this account.</EmptyState> : (
+      {tab === 'alerts' ? <AlertPreferencesPanel /> : tab === 'appearance' ? <AppearancePanel /> : !user ? <EmptyState>Profile details are not available for this account.</EmptyState> : (
         <section className="card stack">
           <div className="inline"><span className="avatar" aria-hidden="true">{userName.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><h2 className="card-title">{userName}</h2><p className="small muted">{user.position ?? 'Team member'} · {role}</p></div></div>
           <h3>Profile details</h3>
