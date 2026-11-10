@@ -10,43 +10,52 @@
   --advisory-watch: var(--adv-watch-text);
   --advisory-high: var(--adv-high-text);
   min-width: 0;
-  gap: var(--space-6);
-  padding: clamp(16px, 2.5vw, 32px);
-  border-radius: var(--radius-lg);
+  gap: var(--space-5);
+  padding: var(--page-padding);
+  border-radius: var(--radius-card);
   color: var(--text-primary);
+  font-size: var(--font-body);
 }
 .glass-screen .page-heading { align-items: center; margin: 0; }
-.glass-screen .page-heading h1 { font-size: clamp(24px, 3vw, 32px); font-weight: 600; }
+.glass-screen .page-heading h1 { font-size: var(--font-h1); font-weight: 600; line-height: 1.15; }
 .glass-screen .page-heading p, .glass-screen .muted { color: var(--text-secondary); }
-.glass-screen .card { padding: clamp(18px, 2vw, 24px); }
-.glass-screen .card-title { font-size: 16px; }
-.glass-greeting p { margin: 0 0 6px; color: var(--text-secondary); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
-.glass-greeting h2 { margin: 0; font-size: clamp(24px, 3vw, 36px); line-height: 1.2; font-weight: 500; }
-.glass-screen .readings-grid, .glass-advisories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.glass-screen .reading-card { min-height: 0; }
-.glass-screen .reading-label { color: var(--text-secondary); }
-.glass-screen .reading-number { margin: 22px 0 12px; font-size: clamp(34px, 3.5vw, 48px); font-weight: 400; overflow-wrap: anywhere; }
-.glass-screen .reading-meta { align-items: flex-start; flex-direction: column; color: var(--text-secondary); font-size: 12px; }
+.glass-screen .card { padding: var(--space-5); }
+.glass-screen .card-title { font-size: var(--font-h3); }
+.glass-greeting { display: grid; gap: var(--space-1); }
+.glass-greeting p { margin: 0; color: var(--text-secondary); font-size: var(--font-caption); font-weight: 500; }
+.glass-greeting h2 { margin: 0; font-size: var(--font-h1); line-height: 1.15; font-weight: 600; }
+.glass-screen .readings-grid, .glass-advisories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
+.glass-screen .reading-card { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; }
+.glass-screen .reading-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.glass-screen .reading-label { color: var(--text-secondary); font-size: var(--font-caption); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.glass-screen .reading-number { margin: 0; font-size: var(--font-display); font-weight: 500; line-height: 1.05; overflow-wrap: anywhere; }
+.glass-screen .reading-status, .glass-screen .reading-caption { margin: 0; color: var(--text-secondary); font-size: var(--font-caption); }
 .glass-screen .badge, .glass-screen .connection-pill { border-color: currentColor; background: var(--glass-bg-strong); }
-.reading-scale { display: grid; gap: 10px; margin-top: 20px; color: var(--text-secondary); font-size: 12px; }
-.reading-scale-track { position: relative; height: 8px; margin: 0 7px; border-radius: var(--radius-pill); background: var(--meter); }
-.reading-scale-track span { position: absolute; top: 50%; width: 14px; height: 14px; border: 2px solid var(--text-primary); border-radius: 50%; background: var(--glass-bg-strong); transform: translate(-50%, -50%); }
-.reading-updated { margin: 14px 0 0; color: var(--text-secondary); font-size: 12px; }
-.glass-section-title { margin: 0; font-size: 20px; font-weight: 600; }
-.glass-advisories { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
-.glass-advisories h3 { margin: 0 0 14px; font-size: 16px; }
-.live-screen { gap: 20px; }
+.reading-scale { position: relative; display: grid; gap: var(--space-1); margin-top: auto; padding-top: var(--space-2); color: var(--text-secondary); font-size: var(--font-caption); }
+.reading-scale-track { position: relative; height: 8px; margin: 0 7px; border-radius: var(--radius-control); background: var(--meter); }
+.reading-scale-dim { position: absolute; top: 0; bottom: 0; background: var(--glass-bg-strong); opacity: .72; }
+.reading-scale-dim:first-of-type { border-radius: var(--radius-control) 0 0 var(--radius-control); }
+.reading-scale-dim:nth-of-type(2) { border-radius: 0 var(--radius-control) var(--radius-control) 0; }
+.reading-scale-track > span { position: absolute; top: 50%; width: 14px; height: 14px; border: 2px solid var(--text-primary); border-radius: 50%; background: var(--glass-bg-strong); transform: translate(-50%, -50%); transition: left 250ms cubic-bezier(.23, 1, .32, 1); }
+.reading-scale-labels { position: relative; height: 1.25em; margin: 0 7px; font-variant-numeric: tabular-nums; }
+.reading-scale-labels span { position: absolute; top: 0; transform: translateX(-50%); }
+.reading-scale .info-tip { position: absolute; right: 0; bottom: 0; display: inline-grid; width: 24px; height: 24px; place-items: center; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); cursor: help; }
+.reading-scale .info-tip:hover { color: var(--text-primary); background: var(--accent-soft); }
+.reading-updated { margin: 0; color: var(--text-secondary); font-size: var(--font-caption); }
+.glass-section-title { margin: 0; font-size: var(--font-h3); font-weight: 600; }
+.glass-advisories { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--space-3); }
+.glass-advisories h3 { margin: 0 0 var(--space-3); font-size: var(--font-h3); }
+.live-screen { gap: var(--space-5); }
 .live-screen .page-heading { min-height: 0; }
-.live-section, .live-panel { display: grid; gap: 16px; min-width: 0; }
-.live-section-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
-.live-section-heading h2 { margin: 0; font-size: 17px; font-weight: 700; }
-.live-section-heading p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; }
-.live-update { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; }
-.live-screen .readings-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
-.live-screen .reading-number { margin: 16px 0 10px; }
+.live-section, .live-panel { display: grid; gap: var(--space-3); min-width: 0; }
+.live-section-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.live-section-heading h2 { margin: 0; font-size: var(--font-h2); font-weight: 600; line-height: 1.2; }
+.live-section-heading p { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--font-caption); }
+.live-update { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-caption); }
+.live-screen .readings-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
 .live-screen .glass-advisories { margin-top: 0; }
-.live-screen .glass-advisories .card { padding: 16px; box-shadow: none; }
-.live-device-details { display: grid; gap: 10px; }
+.live-screen .glass-advisories .card { padding: var(--space-4); box-shadow: none; }
+.live-device-details { display: grid; gap: var(--space-3); }
 .live-device-details p { margin: 0; }
 .coming-soon-page { padding-top: 60px; }
 .glass-shell .coming-soon-page .page-heading { padding-right: 0; }
@@ -67,17 +76,15 @@
 
 @media (max-width: 1050px) {
   .glass-screen .readings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .live-screen .readings-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+  .live-screen .readings-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
 }
 @media (max-width: 1100px) {
   .coming-soon-page { padding-top: 0; }
 }
 @media (max-width: 760px) {
-  .glass-screen { gap: 18px; padding: 16px; }
   .glass-screen .page-heading { align-items: flex-start; }
   .glass-screen .readings-grid, .glass-advisories { grid-template-columns: 1fr; }
-  .live-screen .readings-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
-  .glass-screen .reading-number { margin-top: 16px; }
+  .live-screen .readings-grid { grid-template-columns: 1fr; }
   .glass-screen .tabs { max-width: 100%; }
   .glass-screen .tab { padding: 0 12px; }
   .trend-chart-frame { height: 260px; }

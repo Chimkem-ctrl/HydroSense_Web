@@ -10,7 +10,13 @@ import { ReadingCard } from '../components/readings/ReadingCard';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState, ErrorState, LoadingState, StaleState } from '../components/common/States';
 
+function greetingForNow() {
+  const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }).format(new Date())) % 24;
+  return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+}
+
 export default function LiveMonitorPage() {
+  const greeting = greetingForNow();
   const { tankId } = useSelectedTank();
   const { userName } = useRole();
   const tanks = useTanks();
@@ -26,7 +32,7 @@ export default function LiveMonitorPage() {
 
   return (
     <div className="stack live-screen">
-      <header className="glass-greeting"><p>WATER QUALITY MONITORING</p><h2>Welcome, {userName}.</h2></header>
+      <header className="glass-greeting"><p>{greeting},</p><h2>{userName}</h2></header>
       <PageHeading title="Live monitor" description={tank ? `${tank.name} · ${tank.site} · rearing day ${getRaisingDay(tank.rearingStartDate)}/21` : 'Current water quality and device status'} />
       {tanks.isLoading || reading.isLoading || thresholds.isLoading ? <LoadingState /> :
       tanks.isError ? <ErrorState error={tanks.error} onRetry={() => void tanks.refetch()} /> :
@@ -47,14 +53,14 @@ export default function LiveMonitorPage() {
       </section>
       <section className="card live-panel" aria-labelledby="live-advisories-title">
         <div className="live-section-heading">
-          <div><h2 id="live-advisories-title">Water-quality advisories</h2><p>Salinity and ammonia are not measured by the sensors. These rule-based advisories are not readings.</p></div>
+          <div><h2 id="live-advisories-title">Water-quality advisories</h2><p>Rule-based estimates, not sensor readings.</p></div>
         </div>
         {advisories.isLoading ? <LoadingState label="Loading advisories" /> : advisories.isError ? <ErrorState error={advisories.error} onRetry={() => void advisories.refetch()} /> : (
-          advisories.data?.length ? <div className="glass-advisories">{advisories.data.map((item) => <article className="card glass" key={item.kind}><h3>{item.kind === 'salinity' ? 'Salinity risk' : 'Ammonia risk'}</h3><AdvisoryChip advisory={item} tankId={tankId} /></article>)}</div> : <EmptyState>No advisories are available for this tank.</EmptyState>
+          advisories.data?.length ? <div className="glass-advisories">{advisories.data.map((item) => <article className="card glass" key={item.kind}><AdvisoryChip advisory={item} tankId={tankId} /></article>)}</div> : <EmptyState>No advisories are available for this tank.</EmptyState>
         )}
       </section>
       <section className="card live-panel" aria-labelledby="live-device-title">
-          <div className="live-section-heading"><div><h2 id="live-device-title">Device connection</h2><p>Readings are sampled every 3 hours.</p></div></div>
+          <div className="live-section-heading"><div><h2 id="live-device-title">Device connection</h2></div></div>
           {devices.isLoading ? <LoadingState label="Loading device status" /> : devices.isError ? <ErrorState error={devices.error} onRetry={() => void devices.refetch()} /> : device ? (
             <div className="live-device-details">
               <div className="inline">
@@ -62,7 +68,7 @@ export default function LiveMonitorPage() {
                 <span className="badge"><Gauge size={14} />Battery {device.batteryPct > 0 ? `${device.batteryPct}%` : 'Unavailable'}</span>
                 {alerts.isLoading ? <span className="badge">Loading alerts…</span> : alerts.isError ? <ErrorState error={alerts.error} onRetry={() => void alerts.refetch()} /> : <span className="badge"><AlertTriangle size={14} />{(alerts.data ?? []).length} open alerts</span>}
               </div>
-              <p className="small muted">{device.deviceId && <>Device {device.deviceId} · </>}Wi-Fi {device.wifiRssi} dBm · Last seen {formatManilaDateTime(device.lastSeen)} PHT</p>
+              <p className="small muted">{device.deviceId && <>{device.deviceId} · </>}Wi-Fi {device.wifiRssi} dBm · Last seen {formatManilaDateTime(device.lastSeen)} PHT · Sampled every 3 h</p>
             </div>
           ) : <EmptyState>No device is assigned to this tank.</EmptyState>}
       </section>

@@ -30,6 +30,7 @@ import { signOut } from '../../services/authService';
 import { useSelectedTank } from '../../app/tank/TankContext';
 import { useLatestReading, useOpenAlerts, useTanks } from '../../app/data/hooks';
 import { ErrorState, LoadingState } from '../common/States';
+import { CriticalAlertModal } from './CriticalAlertModal';
 
 const icons: Record<string, LucideIcon> = {
   '/': LayoutDashboard,
@@ -97,7 +98,7 @@ export function AppShell() {
   const openAlerts = (alerts.data ?? []).filter((alert) => alert.status === 'open');
   const criticalAlerts = openAlerts.filter((alert) => alert.severity === 'critical');
   return (
-    <div className="app-shell glass-shell">
+    <div className="app-shell glass-shell" data-role={role}>
       {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
         <Link to="/" className="brand" aria-label="HydroSense home">
@@ -133,13 +134,7 @@ export function AppShell() {
       </aside>
 
       <div className="main-area">
-        {criticalAlerts.length > 0 && (
-          <div className="critical-banner" role="alert">
-            <AlertTriangle size={18} aria-hidden="true" />
-            <span>{criticalAlerts.length} unacknowledged critical {criticalAlerts.length === 1 ? 'alert' : 'alerts'} need attention.</span>
-            <Link to="/alerts">Review alerts</Link>
-          </div>
-        )}
+        {criticalAlerts.length > 0 && <CriticalAlertModal alert={criticalAlerts[0]} remaining={criticalAlerts.length} />}
         <main className="page-content glass-screen">
           <div className="page-controls" aria-label="Dashboard controls">
             <button type="button" className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu size={19} /></button>

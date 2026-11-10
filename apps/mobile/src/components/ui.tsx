@@ -99,7 +99,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   secondaryButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 10 },
   secondaryText: { color: colors.ink, fontWeight: '700', fontSize: 14, textAlign: 'center' },
   disabled: { opacity: 0.5 },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   state: { padding: 18, alignItems: 'center', gap: 10 },
   dataRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 10, gap: 8 },
   dataLabel: { color: colors.ink, fontWeight: '700', fontSize: 14 },

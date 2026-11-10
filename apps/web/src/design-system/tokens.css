@@ -48,7 +48,8 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-6: 24px;
+  --space-5: 24px;
+  --space-6: 32px;
   --space-8: 32px;
   --radius-sm: 12px;
   --radius-md: 16px;
@@ -107,4 +108,32 @@
   --skeleton: rgba(182,196,224,0.22);
   --progress: linear-gradient(90deg, #16a34a, #06b6d4);
   --button-gradient: linear-gradient(120deg, #1d4ed8, #0369a1);
+}
+
+/* Role themes (dark mode): per-role shades of one blue come from styles/tokens.css; text and controls derive from --bg-base.
+   Status colours (--ok/--warn/--critical and *-text) are intentionally not overridden. */
+@supports (color: oklch(from red l c h)) {
+  [data-theme='dark'] .glass-shell[data-role],
+  [data-theme='dark'] .glass-shell[data-role] .glass-screen {
+    --surface-solid: var(--bg-gradient-to);
+    --bg-from: var(--bg-gradient-from);
+    --bg-via: var(--bg-base);
+    --bg-to: var(--bg-gradient-to);
+    --bg-glow: var(--glow);
+    --glass-bg: var(--surface-glass);
+    --glass-bg-strong: var(--surface-solid);
+    --glass-border: var(--surface-border);
+    --glass-edge: oklch(from var(--bg-base) .95 .02 h / .10);
+    --glass-shadow: 0 14px 40px oklch(from var(--bg-base) .08 c h / .55);
+    --text-primary: oklch(from var(--bg-base) .97 .012 h);
+    --text-secondary: oklch(from var(--bg-base) .86 .03 h);
+    --text-muted: oklch(from var(--bg-base) .80 .035 h);
+    --control-fill: oklch(from var(--bg-base) calc(l + .06) c h / .92);
+    --control-border: oklch(from var(--bg-base) .88 .04 h / .72);
+    --row-hover: oklch(from var(--bg-base) .85 .05 h / .10);
+    --overlay: oklch(from var(--bg-base) .08 c h / .78);
+    --skeleton: oklch(from var(--bg-base) .85 .04 h / .22);
+    --button-gradient: linear-gradient(120deg, oklch(from var(--bg-base) .48 .19 h), oklch(from var(--bg-base) .40 .15 h));
+    --on-accent: #ffffff;
+  }
 }

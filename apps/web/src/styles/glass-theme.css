@@ -1,0 +1,94 @@
+/* Shared glass look, type scale and spacing for every authenticated page.
+   Colours come from the role variables in design-system/tokens.css; sizes from styles/tokens.css. */
+
+.glass-shell.app-shell {
+  background:
+    radial-gradient(ellipse 60% 50% at 88% 0%, var(--bg-glow), transparent 70%),
+    radial-gradient(ellipse 50% 45% at 8% 100%, var(--bg-glow), transparent 70%),
+    linear-gradient(135deg, var(--bg-from), var(--bg-via) 52%, var(--bg-to));
+  background-attachment: fixed;
+  font-size: var(--font-body);
+}
+
+/* Glass panels */
+.glass-shell .card, .glass-shell .state-box {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--glass-bg);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+.glass-shell .live-panel > .glass-advisories .card, .glass-shell .live-panel .card { box-shadow: inset 0 1px 0 var(--glass-edge); }
+.glass-shell .card, .glass-shell .state-box, .glass-shell .nav-link, .glass-shell .button, .glass-shell .icon-button, .glass-shell .tab, .glass-shell .select-control, .glass-shell .advisory-chip {
+  transition: background-color 200ms ease-out, border-color 200ms ease-out, color 200ms ease-out, transform 150ms ease-out, box-shadow 200ms ease-out;
+}
+.glass-shell .readings-grid > .card { height: 100%; }
+
+/* Slim glass sidebar with a soft accent pill for the active page */
+@media (min-width: 1101px) {
+  .glass-shell .sidebar { width: 232px; }
+  .glass-shell .main-area { margin-left: 264px; }
+}
+.glass-shell .sidebar {
+  border-color: var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--glass-bg);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+.glass-shell .nav-link { border-radius: var(--radius-control); color: var(--text-secondary); font-size: var(--font-button); }
+.glass-shell .nav-link:hover { background: var(--row-hover); color: var(--text-primary); }
+.glass-shell .nav-link[aria-current='page'] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text-primary); font-weight: 600; }
+.glass-shell .nav-group { color: var(--text-muted); font-size: var(--font-caption); }
+.glass-shell .brand { font-size: var(--font-h3); }
+.glass-shell .brand small { font-size: var(--font-caption); }
+.glass-shell .sidebar-footer { color: var(--text-muted); font-size: var(--font-caption); }
+
+/* Header controls as glass pills */
+.page-controls { top: var(--page-padding); right: var(--page-padding); gap: var(--space-3); }
+.glass-shell .page-controls .select-control, .glass-shell .page-controls .icon-button, .glass-shell .page-controls .connection-pill {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-control);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+.glass-shell .page-controls .icon-button { gap: var(--space-2); padding: 0 var(--space-3); }
+
+/* One radius for pills and buttons, one for cards */
+.glass-shell .button, .glass-shell .tab, .glass-shell .badge, .glass-shell .connection-pill, .glass-shell .select-control, .glass-shell .icon-button, .glass-shell .advisory-chip { border-radius: var(--radius-control); }
+.glass-shell .popover, .glass-shell .dialog, .glass-shell .account-menu-popover { border-radius: var(--radius-card); }
+.glass-shell .advisory-chip { gap: var(--space-2); padding: var(--space-2) var(--space-4); font-size: var(--font-button); }
+.glass-shell .advisory-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+.glass-shell .info-tip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Type scale */
+.glass-shell h1 { font-size: var(--font-h1); }
+.glass-shell h2 { font-size: var(--font-h2); }
+.glass-shell h3 { font-size: var(--font-h3); }
+.glass-shell .button, .glass-shell .tab, .glass-shell .select-control, .glass-shell .icon-button, .glass-shell .connection-pill, .glass-shell .badge, .glass-shell .field input, .glass-shell .field select, .glass-shell .field textarea { font-size: var(--font-button); }
+.glass-shell .small, .glass-shell th, .glass-shell .field, .glass-shell .footer-note, .glass-shell .state-stale, .glass-shell .advisory-evidence p, .glass-shell .advisory-evidence li { font-size: var(--font-caption); }
+.glass-shell .advisory-evidence h3, .glass-shell .advisory-evidence h4 { font-size: var(--font-button); }
+.glass-shell .badge, .glass-shell .connection-pill { font-size: var(--font-caption); }
+.glass-shell .profile-page .profile-summary h2, .glass-shell .profile-page .profile-panel-heading h2, .glass-shell .profile-page .profile-theme legend,
+.glass-shell .admin-users-heading h2, .glass-shell .settings-page .settings-card-title { font-size: var(--font-h3); }
+.glass-shell .profile-page .profile-group h3 { font-size: var(--font-button); }
+.glass-shell .profile-page .profile-summary p, .glass-shell .profile-page .profile-details > div, .glass-shell .profile-page .profile-note,
+.glass-shell .profile-page .profile-panel-heading p, .glass-shell .profile-page .profile-theme-description,
+.glass-shell .admin-users-heading p, .glass-shell .admin-users-count, .glass-shell .admin-users-page .admin-users-scroll-hint,
+.glass-shell .settings-page .settings-section-title, .glass-shell .settings-page .settings-muted, .glass-shell .settings-page .settings-info-row,
+.glass-shell .settings-page .settings-row, .glass-shell .settings-page .session-group, .glass-shell .settings-page .device-provision-form label,
+.glass-shell .settings-page .settings-provision-message { font-size: var(--font-caption); }
+.glass-shell .profile-page .profile-avatar, .glass-shell .settings-page .avatar-lg, .glass-shell .settings-page .profile-name { font-size: var(--font-body); }
+
+/* Spacing: card padding, section gaps and in-card gaps */
+.glass-shell .trend-charts, .glass-shell .stack, .glass-shell .grid-2, .glass-shell .grid-3 { gap: var(--space-5); }
+.glass-shell .form-grid.filter-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+@media (max-width: 760px) {
+  .glass-shell .form-grid.filter-row { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-shell *, .glass-shell *::before { transition-duration: 0.01ms !important; }
+}

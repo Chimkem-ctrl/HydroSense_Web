@@ -95,7 +95,7 @@ export default function AlertsPage() {
               <p>{alert.threshold} · {formatManilaDateTime(alert.createdAt)} PHT</p>
               <p className="small muted">Tank: {alert.tankId}{alert.acknowledgedBy ? ` · Acknowledged by ${alert.acknowledgedBy}` : ''}</p>
               <div className="inline">
-                <button type="button" className="button" onClick={() => { setSelected(alert); setNote(''); setFormError(''); }}>Response history / respond</button>
+                {alert.status !== 'open' && <button type="button" className="button" onClick={() => { setSelected(alert); setNote(''); setFormError(''); }}>View history</button>}
                 {alert.status === 'open' && <button type="button" className="button button-primary" onClick={() => { setSelected(alert); setNote(''); setFormError(''); }}>Acknowledge</button>}
               </div>
             </article>

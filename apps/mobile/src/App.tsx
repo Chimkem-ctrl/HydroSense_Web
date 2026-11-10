@@ -35,6 +35,7 @@ import { LoginScreen, SignUpScreen, PendingApprovalScreen, ForgotPasswordScreen 
 import { useSession, SessionProvider, TankProvider } from './state';
 import { ThemeProvider, useTheme } from './theme';
 import { HeaderToolbar } from './components/HeaderToolbar';
+import { CriticalAlertModal } from './components/CriticalAlertModal';
 import { api, liveClient } from './services/client';
 import { queryClient, queryPersister } from './services/queryClient';
 import { canAccess } from './access';
@@ -192,6 +193,7 @@ function AppNavigation() {
       </Stack.Navigator>
     </NavigationContainer>
     <ConnectionNotice online={online} />
+    {user && <CriticalAlertModal />}
   </>;
 }
 

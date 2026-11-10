@@ -11,6 +11,7 @@ import './design-system/tokens.css';
 import './design-system/glass.css';
 import './styles/glass-screens.css';
 import './styles/glass-shell.css';
+import './styles/glass-theme.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

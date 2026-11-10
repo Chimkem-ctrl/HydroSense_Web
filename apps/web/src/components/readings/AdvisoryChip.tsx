@@ -1,4 +1,4 @@
-import { HelpCircle, Info } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import type { AdvisoryState } from '@hydrosense/shared';
 import { AdvisoryEvidence } from './AdvisoryEvidence';
@@ -21,10 +21,11 @@ export function AdvisoryChip({ advisory, tankId }: { advisory: AdvisoryState; ta
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? detailId : undefined}
+        aria-label={`Advisory · ${kindLabel[advisory.kind]} · ${levelLabel[advisory.level]}`}
         onClick={() => setOpen((value) => !value)}
       >
-        <Info size={15} aria-hidden="true" />
-        <span>Advisory · {kindLabel[advisory.kind]} · {levelLabel[advisory.level]}</span>
+        <span className="advisory-dot" aria-hidden="true" />
+        <span>{kindLabel[advisory.kind]} · {levelLabel[advisory.level]}</span>
         <HelpCircle size={15} aria-hidden="true" />
       </button>
       {open && (

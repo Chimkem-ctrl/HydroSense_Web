@@ -187,7 +187,7 @@ export default function ActivityLogsPage() {
       <StaleQueryState updatedAt={logs.dataUpdatedAt} />
       <section className="card stack">
         <h2 className="card-title">Activity records</h2>
-        <div className="form-grid">
+        <div className="form-grid filter-row">
           <label className="field">Kind
             <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as ActivityLogKind | 'all')}>
               <option value="all">All kinds</option>
