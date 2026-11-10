@@ -5,6 +5,7 @@ import type { AlertItem } from '@hydrosense/shared';
 import { api } from '../app/api';
 import { useRole } from '../app/auth/RoleContext';
 import { useSelectedTank } from '../app/tank/TankContext';
+import { useTanks } from '../app/data/hooks';
 import { PageHeading } from '../components/common/PageHeading';
 import { StatusBadge } from '../components/readings/StatusBadge';
 import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
@@ -19,6 +20,7 @@ const tabs: Array<{ key: AlertTab; label: string }> = [
 export default function AlertsPage() {
   const { role, userName } = useRole();
   const { tankId } = useSelectedTank();
+  const tanks = useTanks();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<AlertTab>('open');
   const [selected, setSelected] = useState<AlertItem | null>(null);
@@ -56,6 +58,7 @@ export default function AlertsPage() {
     },
   });
   const items = (query.data ?? []).filter((alert) => alert.status === tab);
+  const tankNames = new Map((tanks.data ?? []).map((tank) => [tank.id, tank.name]));
 
   useEffect(() => {
     if (!selected) return undefined;
@@ -93,7 +96,7 @@ export default function AlertsPage() {
                 <StatusBadge level={alert.severity === 'critical' ? 'critical' : 'warning'} label={alert.severity} />
               </div>
               <p>{alert.threshold} · {formatManilaDateTime(alert.createdAt)} PHT</p>
-              <p className="small muted">Tank: {alert.tankId}{alert.acknowledgedBy ? ` · Acknowledged by ${alert.acknowledgedBy}` : ''}</p>
+              <p className="small muted">Tank: {tankNames.get(alert.tankId) ?? 'Unknown tank'}{alert.acknowledgedBy ? ` · Acknowledged by ${alert.acknowledgedBy}` : ''}</p>
               <div className="inline">
                 <button type="button" className="button" onClick={() => { setSelected(alert); setNote(''); setFormError(''); }}>Response history / respond</button>
                 {alert.status === 'open' && <button type="button" className="button button-primary" onClick={() => { setSelected(alert); setNote(''); setFormError(''); }}>Acknowledge</button>}
@@ -105,7 +108,7 @@ export default function AlertsPage() {
       {selected && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
           <section className="dialog card stack" role="dialog" aria-modal="true" aria-labelledby="alert-response-title">
-            <header><h2 id="alert-response-title" className="card-title">Alert response history</h2><p>{selected.parameter} · {selected.tankId} · {selected.threshold}</p></header>
+            <header><h2 id="alert-response-title" className="card-title">Alert response history</h2><p>{selected.parameter} · {tankNames.get(selected.tankId) ?? 'Unknown tank'} · {selected.threshold}</p></header>
             {responses.isLoading ? <LoadingState label="Loading response history" /> : responses.isError ? <ErrorState error={responses.error} onRetry={() => void responses.refetch()} /> : (responses.data ?? []).length ? (
               <ol>{responses.data?.map((response) => <li key={response.id}><b>{response.status}</b> · {response.createdBy} · {formatManilaDateTime(response.createdAt)} PHT<p>{response.note}</p></li>)}</ol>
             ) : <EmptyState>No response history has been recorded.</EmptyState>}
