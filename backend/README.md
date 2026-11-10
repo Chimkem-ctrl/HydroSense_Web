@@ -220,43 +220,94 @@ Example error:
 }
 ```
 
-## Local environment configuration
+## Teammate startup guide
 
-## Backend startup guide
+Follow these steps to run the backend and web app against the hosted HydroSense Supabase project. You need Node.js 20+, npm, Git, and an authorized Supabase account. Docker Desktop is only required for the optional local Supabase stack.
 
-### Prerequisites
+### 1. Get the code and install dependencies
 
-- Node.js 20 or newer
-- npm
-- Supabase CLI
-- Docker Desktop, only for running the complete local Supabase stack
-- Access to the HydroSense Supabase project
+From a terminal:
 
-### Install and configure
+```powershell
+git clone --branch backend-hardware https://github.com/Chimkem-ctrl/HydroSense_Web.git
+cd HydroSense_Web
+npm install
+```
+
+If you already have the repository, switch to the branch and pull its latest changes:
+
+```powershell
+git switch backend-hardware
+git pull
+npm install
+```
+
+### 2. Configure backend credentials
+
+Create `backend/.env.local` (it is ignored by Git) with the database connection details from the team's approved secrets manager and Supabase project settings:
+
+```dotenv
+SUPABASE_PROJECT_REF=iafooterjwbihuzwakoc
+SUPABASE_DB_HOST=aws-0-ap-south-1.pooler.supabase.com
+SUPABASE_DB_PORT=6543
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_USER=postgres.iafooterjwbihuzwakoc
+SUPABASE_DB_PASSWORD=RETRIEVE_FROM_APPROVED_SECRETS_MANAGER
+```
+
+Replace the password placeholder locally. Do not commit the file or share its contents in chat, tickets, screenshots, or source control. The migration script only needs these database settings; do not add a Supabase secret/service-role key to this file.
+
+### 3. Authenticate and link the Supabase CLI
+
+```powershell
+npx supabase login
+npx supabase link --project-ref iafooterjwbihuzwakoc --workdir backend/supabase
+```
+
+The CLI account must have access to the HydroSense project. Linking is per checkout and does not replace the database password required by the migration script.
+
+### 4. Apply database migrations
 
 From the repository root:
 
 ```powershell
-npm install
-npx supabase login
+npm run db:migrate --workspace @hydrosense/backend
 ```
 
-Create `backend/.env.local` from the database settings stored in the Supabase project dashboard:
+This applies SQL files in `backend/supabase/migrations` to the configured hosted database. Never set `RESET_PUBLIC_SCHEMA=true` on the shared or production database; that option drops and recreates the public schema.
+
+### 5. Deploy the API (authorized maintainers only)
+
+The API is a Supabase Edge Function in `backend/supabase/functions/api/index.ts`. Deploying updates the hosted project, so only do this when authorized and after reviewing the changes:
+
+```powershell
+npm run deploy:api --workspace @hydrosense/backend
+```
+
+The deployed API base URL is `https://iafooterjwbihuzwakoc.supabase.co/functions/v1/api`. Function secrets are managed in Supabase; never put secret/service-role keys in browser environment variables or commit them.
+
+### 6. Run the web app against the hosted API
+
+Create `apps/web/.env.local`:
 
 ```dotenv
-SUPABASE_PROJECT_REF=your-project-reference
-SUPABASE_DB_HOST=your-host
-SUPABASE_DB_PORT=5432
-SUPABASE_DB_NAME=postgres
-SUPABASE_DB_USER=your-database-user
-SUPABASE_DB_PASSWORD=your-database-password
+VITE_DATA_MODE=api
+VITE_API_BASE_URL=https://iafooterjwbihuzwakoc.supabase.co/functions/v1/api
+VITE_SUPABASE_URL=https://iafooterjwbihuzwakoc.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 ```
 
-The database password is not a frontend or deployment secret and must never be committed.
+Get the publishable key from the Supabase project settings. It is intended for client applications; never use a secret/service-role key here. Start the web app from the repository root:
 
-### Start local Supabase
+```powershell
+npm run dev
+```
 
-Docker Desktop must be running:
+Vite prints the local URL, normally `http://localhost:5173`.
+
+### Optional: run local Supabase
+
+Docker Desktop must be running. From the repository root:
 
 ```powershell
 npm run start --workspace @hydrosense/backend
@@ -268,117 +319,7 @@ Stop the local stack with:
 npm run stop --workspace @hydrosense/backend
 ```
 
-### Start with a hosted Supabase project
-
-Link the repository to the hosted project:
-
-```powershell
-npx supabase link --project-ref your-project-reference --workdir backend/supabase
-```
-
-Apply migrations and deploy the API:
-
-```powershell
-npm run db:migrate --workspace @hydrosense/backend
-npm run deploy:api --workspace @hydrosense/backend
-```
-
-The API function can also be deployed directly:
-
-```powershell
-npx supabase functions deploy api --project-ref your-project-reference --workdir backend/supabase --yes
-```
-
-### Start the web application
-
-From the repository root, configure `apps/web/.env.local` and start the web workspace:
-
-```dotenv
-VITE_DATA_MODE=api
-VITE_API_BASE_URL=https://your-project-reference.supabase.co/functions/v1/api
-VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-```
-
-```powershell
-npm run dev
-```
-
-The Vite server prints the local URL, normally `http://localhost:5173`.
-
-Create `backend/.env.local`. This file is excluded by Git.
-
-```dotenv
-SUPABASE_PROJECT_REF=iafooterjwbihuzwakoc
-SUPABASE_DB_HOST=aws-0-ap-south-1.pooler.supabase.com
-SUPABASE_DB_PORT=6543
-SUPABASE_DB_NAME=postgres
-SUPABASE_DB_USER=postgres.iafooterjwbihuzwakoc
-SUPABASE_DB_PASSWORD=your-database-password
-```
-
-Never put the service-role/secret key in `.env.local` unless an explicitly server-side deployment workflow requires it. If added, do not commit it.
-
-## Install and link Supabase CLI
-
-Run from the repository root:
-
-```powershell
-npm install
-npx supabase login
-npx supabase link --project-ref iafooterjwbihuzwakoc --workdir backend/supabase
-```
-
-Docker is optional for direct hosted migration/deployment. It is required for fully local Supabase services.
-
-## Apply migrations
-
-Apply every SQL migration in `backend/supabase/migrations`:
-
-```powershell
-npm run db:migrate --workspace @hydrosense/backend
-```
-
-To apply migrations through the Supabase CLI instead:
-
-```powershell
-npx supabase db push --workdir backend/supabase
-```
-
-`RESET_PUBLIC_SCHEMA=true` in the migration script resets the public schema. Only use this on a disposable development database.
-
-## Deploy and update the API
-
-Deploy from the repository root:
-
-```powershell
-npx supabase functions deploy api --workdir backend/supabase --project-ref iafooterjwbihuzwakoc --yes
-```
-
-The Edge Function must be deployed from the Supabase project containing:
-
-```text
-backend/supabase/functions/api/index.ts
-```
-
-When configuration changes are needed, edit:
-
-```text
-backend/supabase/config.toml
-```
-
-The custom API runs with gateway JWT verification disabled for public sign-up/sign-in routes and validates tokens internally for protected routes.
-
-## Frontend configuration
-
-The web app uses these values in `apps/web/.env.local`:
-
-```dotenv
-VITE_DATA_MODE=api
-VITE_API_BASE_URL=https://iafooterjwbihuzwakoc.supabase.co/functions/v1/api
-VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-```
-
-The publishable key is safe for browser/mobile clients. The secret or service-role key must remain server-only.
+The local Supabase stack is separate from the hosted project. Check the CLI output for local service URLs and keys before configuring a client to use it.
 
 ## Realtime
 
