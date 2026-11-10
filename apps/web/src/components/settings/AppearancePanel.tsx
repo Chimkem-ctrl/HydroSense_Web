@@ -10,9 +10,11 @@ const OPTIONS: { value: ThemeChoice; label: string; hint: string }[] = [
 export function AppearancePanel() {
   const { choice, setChoice } = useTheme();
   return (
-    <section className="card stack">
-      <fieldset className="stack" style={{ border: 0, margin: 0, padding: 0 }}>
-        <legend className="card-title">Theme</legend>
+    <section className="card profile-preferences">
+      <fieldset className="profile-theme">
+        <legend>Theme</legend>
+        <p className="profile-theme-description">Choose how HydroSense appears on this device.</p>
+        <div className="profile-options">
         {OPTIONS.map(({ value, label, hint }) => (
           <label key={value} className="check-row">
             <input type="radio" name="theme" value={value} checked={choice === value} onChange={() => setChoice(value)} />
@@ -20,6 +22,7 @@ export function AppearancePanel() {
             <small className="muted">{hint}</small>
           </label>
         ))}
+        </div>
       </fieldset>
     </section>
   );

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MainTabParamList } from '../navigation';
 import { canAccess } from '../access';
 import { api, liveClient } from '../services/client';
+import { getConnectionLabel } from '../services/connectionStatus';
 import { useSession, useTankSelection } from '../state';
 import { Brand } from './ui';
 import { useTheme } from '../theme';
@@ -25,12 +26,18 @@ export function HeaderToolbar({ navigation, route }: BottomTabHeaderProps) {
   const [online, setOnline] = useState<boolean | null>(null);
   const [connection, setConnection] = useState(liveClient?.getConnectionState() ?? 'disconnected');
   const alerts = useQuery({ queryKey: ['alerts', 'toolbar'], queryFn: () => api.listAlerts(), enabled: Boolean(user) });
+  const latestReading = useQuery({ queryKey: ['latest-reading', tankId], queryFn: () => api.getLatestReading(tankId), enabled: Boolean(user && tankId) });
+  const [, updateClock] = useState(0);
   const openAlerts = alerts.data?.filter((item) => item.status === 'open').length;
   const tank = tanks.find((item) => item.id === tankId);
 
   useEffect(() => NetInfo.addEventListener((state) => setOnline(state.isConnected)), []);
   useEffect(() => liveClient?.subscribeConnection(setConnection), []);
   useEffect(() => { setPanel(null); }, [route.key]);
+  useEffect(() => {
+    const timer = setInterval(() => updateClock((value) => value + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const destinations: Destination[] = [
     { name: 'Home', label: 'Live monitor', icon: LayoutDashboard, group: 'Monitor' },
@@ -41,7 +48,7 @@ export function HeaderToolbar({ navigation, route }: BottomTabHeaderProps) {
     ...(user?.role === 'manager' || user?.role === 'admin' ? [{ name: 'Review', label: user.role === 'admin' ? 'Admin overview' : 'Validation review', icon: ClipboardList, group: 'Manage' } satisfies Destination] : []),
     { name: 'Settings', label: 'Settings', icon: Settings, group: 'Manage' },
   ];
-  const connectionLabel = online === false ? 'Offline' : online === null ? 'Checking' : !liveClient ? 'Polling' : connection === 'connected' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Disconnected';
+  const connectionLabel = getConnectionLabel(online, connection, latestReading.data?.timestamp, Date.now());
   const initials = user?.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() ?? '';
 
   function goTo(name: keyof MainTabParamList) {
@@ -76,7 +83,7 @@ export function HeaderToolbar({ navigation, route }: BottomTabHeaderProps) {
           <Waves size={16} color={colors.teal} /><Text numberOfLines={1} style={styles.tankText}>{tank?.name ?? (isLoading ? 'Loading tanks…' : error ? 'Tanks unavailable' : 'Select tank')}</Text><ChevronDown size={16} color={colors.muted} />
         </Pressable>
         <View accessibilityLabel={`Connection ${connectionLabel}`} style={styles.connection}>
-          <View style={[styles.dot, { backgroundColor: connectionLabel === 'Live' ? '#16a34a' : connectionLabel === 'Polling' ? colors.teal : colors.warning }]} />
+          <View style={[styles.dot, { backgroundColor: connectionLabel === 'Live' ? '#16a34a' : colors.warning }]} />
           <Text style={styles.connectionText}>{connectionLabel}</Text>
         </View>
       </View>

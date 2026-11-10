@@ -8,6 +8,13 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
+export const bottomBarRoutes = ['Home', 'Alerts', 'Trends', 'History', 'Status'] as const satisfies readonly (keyof MainTabParamList)[];
+export type BottomBarRoute = (typeof bottomBarRoutes)[number];
+
+export function isBottomBarRoute(name: string): name is BottomBarRoute {
+  return bottomBarRoutes.some((route) => route === name);
+}
+
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;

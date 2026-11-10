@@ -8,7 +8,7 @@ const config: Record<MeasuredParameter, { title: string; unit: string }> = {
   ph: { title: 'pH', unit: 'pH' },
 };
 
-export function ReadingCard({ parameter, reading, threshold, showRangeMeter = false }: { parameter: MeasuredParameter; reading: Reading; threshold?: Threshold; showRangeMeter?: boolean }) {
+export function ReadingCard({ parameter, reading, threshold, showRangeMeter = false, showUpdatedTimestamp = true }: { parameter: MeasuredParameter; reading: Reading; threshold?: Threshold; showRangeMeter?: boolean; showUpdatedTimestamp?: boolean }) {
   const value = parameter === 'do' ? reading.doMgL : reading[parameter];
   const configuredThreshold = threshold ?? DEFAULT_THRESHOLDS.find((item) => item.parameter === parameter);
   const status = getParameterStatus(parameter, value, configuredThreshold);
@@ -38,7 +38,7 @@ export function ReadingCard({ parameter, reading, threshold, showRangeMeter = fa
         <div className="reading-scale-track" aria-hidden="true"><span style={{ left: `${position}%` }} /></div>
         <span>Display scale {scaleMin}–{scaleMax} {config[parameter].unit}{value < scaleMin || value > scaleMax ? ' · marker at scale edge' : ''}</span>
       </div>}
-      {showRangeMeter && <p className="reading-updated">Updated {formatManilaDateTime(reading.timestamp)} PHT</p>}
+      {showRangeMeter && showUpdatedTimestamp && <p className="reading-updated">Updated {formatManilaDateTime(reading.timestamp)} PHT</p>}
     </article>
   );
 }

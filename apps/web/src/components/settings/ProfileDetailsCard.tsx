@@ -18,7 +18,8 @@ export default function ProfileDetailsCard() {
     setPrefs((current) => ({ ...current, [key]: value }));
 
   return (
-    <section className="card settings-card">
+    <section className="card settings-card" aria-labelledby="profile-details-title">
+      <h2 className="settings-card-title" id="profile-details-title">Account profile</h2>
       <div className="profile-identity">
         <span className="avatar avatar-lg" aria-hidden="true">
           {initials}

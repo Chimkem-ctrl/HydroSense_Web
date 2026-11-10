@@ -223,10 +223,6 @@ export default function ActivityLogsPage() {
               <p className="small muted">Add an activity record for shift handover.</p>
             </header>
             <form className="stack" onSubmit={submitLog}>
-              <div className="inline">
-                <button type="button" className={`button${modalKind === 'OPERATION' ? ' button-primary' : ''}`} onClick={() => openLog('OPERATION')}>Operation</button>
-                <button type="button" className={`button${modalKind === 'ENVIRONMENT' ? ' button-primary' : ''}`} onClick={() => openLog('ENVIRONMENT')}>Weather / event</button>
-              </div>
               <label className="field">{modalKind === 'OPERATION' ? 'Tank or scope' : 'Event scope'}
                 <select value={scope} onChange={(event) => setScope(event.target.value)}>
                   <option value="hatchery">Entire hatchery</option>
@@ -259,7 +255,6 @@ export default function ActivityLogsPage() {
               )}
               {modalKind === 'ENVIRONMENT' && <label className="field">Observed impact<select value={impact} onChange={(event) => setImpact(event.target.value)}><option>Low</option><option>Moderate</option><option>High</option><option>Unknown</option></select></label>}
               <label className="field">Notes<textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={modalKind === 'OPERATION' ? 'What was done? Include observations or follow-up needed.' : 'When did it occur? What changed around the tank?'} rows={4} required /></label>
-              <p className="small muted">Recorded by <b>{userName}</b></p>
               {formError && <p className="state-error" role="alert">{formError}</p>}
               {createLog.isError && <ErrorState error={createLog.error} />}
               <footer className="inline">

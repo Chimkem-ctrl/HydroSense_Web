@@ -1,0 +1,27 @@
+.profile-page { gap: 20px; }
+.glass-screen .profile-page .tabs { width: fit-content; max-width: 100%; }
+.profile-page .profile-card, .profile-page .profile-preferences { display: grid; gap: 20px; }
+.profile-page .profile-summary { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid var(--control-border); }
+.profile-page .profile-avatar { width: 52px; height: 52px; font-size: 16px; }
+.profile-page .profile-summary h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.profile-page .profile-summary p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; }
+.profile-page .profile-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.profile-page .profile-group { min-width: 0; padding: 16px; border: 1px solid var(--control-border); border-radius: var(--radius-sm); background: var(--control-fill); }
+.profile-page .profile-group h3 { margin: 0 0 12px; font-size: 14px; }
+.profile-page .profile-details { display: grid; grid-template-columns: 1fr; gap: 0; }
+.profile-page .profile-details > div { grid-template-columns: minmax(95px, 0.8fr) minmax(0, 1.2fr); align-items: start; gap: 12px; padding: 9px 0; font-size: 13px; }
+.profile-page .profile-details > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.profile-page .profile-details dt { color: var(--text-secondary); }
+.profile-page .profile-details dd { min-width: 0; }
+.profile-page .profile-note { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+.profile-page .profile-panel-heading h2, .profile-page .profile-theme legend { margin: 0; font-size: 18px; font-weight: 700; }
+.profile-page .profile-panel-heading p, .profile-page .profile-theme-description { margin: 5px 0 0; color: var(--text-secondary); font-size: 13px; }
+.profile-page .profile-theme { min-width: 0; margin: 0; padding: 0; border: 0; }
+.profile-page .profile-theme-description { margin-bottom: 20px; }
+.profile-page .profile-options { display: grid; gap: 10px; }
+.profile-page .profile-options .check-row { padding: 10px 14px; border: 1px solid var(--control-border); border-radius: var(--radius-sm); background: var(--control-fill); cursor: pointer; }
+.profile-page .profile-options .check-row small { margin-left: 28px; color: var(--text-secondary); }
+@media (max-width: 700px) {
+  .profile-page .profile-groups { grid-template-columns: 1fr; }
+  .glass-screen .profile-page .tabs { border-radius: var(--radius-md); }
+}

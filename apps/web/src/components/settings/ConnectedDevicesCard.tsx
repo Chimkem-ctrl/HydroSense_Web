@@ -74,59 +74,66 @@ export default function ConnectedDevicesCard() {
   };
 
   return (
-    <section className="card settings-card">
-      <h2 className="settings-card-title">Connected Devices</h2>
+    <section className="card settings-card settings-devices" aria-labelledby="connected-devices-title">
+      <h2 className="settings-card-title" id="connected-devices-title">Connected Devices</h2>
 
-      <h3 className="settings-section-title">Provision ESP32</h3>
-      <div className="settings-box">
-        <p className="settings-muted">
-          Connect this computer or phone to the ESP32 <strong>HydroSense-Setup-XXXX</strong> network,
-          then enter the configuration below.
-        </p>
-        <form className="device-provision-form" onSubmit={provisionDevice}>
-          <label>
-            Tank ID
-            <input name="deviceId" required maxLength={80} placeholder="HS-001" />
-          </label>
-          <label>
-            Wi-Fi network
-            <input name="ssid" required maxLength={32} placeholder="Wi-Fi name" />
-          </label>
-          <label>
-            Wi-Fi password
-            <input name="password" type="password" required maxLength={64} placeholder="Wi-Fi password" />
-          </label>
-          <button className="button button-primary provision-submit" type="submit" disabled={isProvisioning}>
-            {isProvisioning ? 'Sending...' : 'Configure ESP32'}
-          </button>
-          {provisionMessage && <p className="settings-provision-message" role="status">{provisionMessage}</p>}
-        </form>
-        <a className="button device-provision-link" href="http://192.168.4.1" target="_blank" rel="noreferrer">
-          Open ESP32 setup page
-        </a>
+      <div className="settings-device-section">
+        <h3 className="settings-section-title">Provision ESP32</h3>
+        <div className="settings-box">
+          <p className="settings-muted">
+            Connect this computer or phone to the ESP32 <strong>HydroSense-Setup-XXXX</strong> network,
+            then enter the configuration below.
+          </p>
+          <form className="device-provision-form" onSubmit={provisionDevice}>
+            <label>
+              Tank ID
+              <input name="deviceId" required maxLength={80} placeholder="HS-001" />
+            </label>
+            <label>
+              Wi-Fi network
+              <input name="ssid" required maxLength={32} placeholder="Wi-Fi name" />
+            </label>
+            <label>
+              Wi-Fi password
+              <input name="password" type="password" required maxLength={64} placeholder="Wi-Fi password" />
+            </label>
+            <button className="button button-primary provision-submit" type="submit" disabled={isProvisioning}>
+              {isProvisioning ? 'Sending...' : 'Configure ESP32'}
+            </button>
+            {provisionMessage && <p className="settings-provision-message" role="status">{provisionMessage}</p>}
+          </form>
+          <a className="button device-provision-link" href="http://192.168.4.1" target="_blank" rel="noreferrer">
+            Open ESP32 setup page
+          </a>
+        </div>
       </div>
-
-      <h3 className="settings-section-title">Hardware Node</h3>
-      <div className="settings-box">
-        <p className="session-group">ESP32-S3 Node - Tank A</p>
-        <StatusRow label="Status (3hr Sync Active):" value="Online" />
-        <StatusRow label="Wi-Fi RSSI: -65 dBm" value="Strong" />
-      </div>
-
-      <h3 className="settings-section-title">Power &amp; Backup System</h3>
-      <div className="settings-box">
-        <p className="session-group">ESP32-S3 Node - Tank A</p>
-        <StatusRow label="LiFePO4 Battery:" value={batteryDisplay} />
-        <StatusRow label="Solar Panel:" value="Unavailable" tone="bad" />
-        <StatusRow label="Main Power (Solar):" value="Unavailable" tone="bad" />
-      </div>
-
-      <h3 className="settings-section-title">Active Sensors</h3>
-      <div className="settings-box">
-        <StatusRow label="pH (Analog BNC)" value="Active" />
-        <StatusRow label="Temperature (DS18B20)" value="Active" />
-        <StatusRow label="DO (SEN0237-A)" value="Active" />
-        <StatusRow label="Salinity (BSK-EC-J100)" value="Active" />
+      <div className="settings-device-grid">
+        <div className="settings-device-section">
+          <h3 className="settings-section-title">Hardware Node</h3>
+          <div className="settings-box">
+            <p className="session-group">ESP32-S3 Node - Tank A</p>
+            <StatusRow label="Status (3hr Sync Active):" value="Online" />
+            <StatusRow label="Wi-Fi RSSI: -65 dBm" value="Strong" />
+          </div>
+        </div>
+        <div className="settings-device-section">
+          <h3 className="settings-section-title">Power &amp; Backup System</h3>
+          <div className="settings-box">
+            <p className="session-group">ESP32-S3 Node - Tank A</p>
+            <StatusRow label="LiFePO4 Battery:" value={batteryDisplay} />
+            <StatusRow label="Solar Panel:" value="Unavailable" tone="bad" />
+            <StatusRow label="Main Power (Solar):" value="Unavailable" tone="bad" />
+          </div>
+        </div>
+        <div className="settings-device-section">
+          <h3 className="settings-section-title">Active Sensors</h3>
+          <div className="settings-box">
+            <StatusRow label="pH (Analog BNC)" value="Active" />
+            <StatusRow label="Temperature (DS18B20)" value="Active" />
+            <StatusRow label="DO (SEN0237-A)" value="Active" />
+            <StatusRow label="Salinity (BSK-EC-J100)" value="Active" />
+          </div>
+        </div>
       </div>
     </section>
   );

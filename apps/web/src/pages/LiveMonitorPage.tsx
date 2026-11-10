@@ -24,25 +24,51 @@ export default function LiveMonitorPage() {
   const hasRecentReading = Boolean(reading.data && Date.now() - new Date(reading.data.timestamp).getTime() <= 15 * 60 * 1000);
   const deviceOnline = Boolean(device?.online || hasRecentReading);
 
-  if (tanks.isLoading || reading.isLoading || thresholds.isLoading) return <LoadingState />;
-  if (tanks.isError) return <ErrorState error={tanks.error} onRetry={() => void tanks.refetch()} />;
-  if (reading.isError) return <ErrorState error={reading.error} onRetry={() => void reading.refetch()} />;
-  if (thresholds.isError) return <ErrorState error={thresholds.error} onRetry={() => void thresholds.refetch()} />;
-  if (!tank || !reading.data) return <EmptyState>No tank or reading is available. Check the tank selector and device status.</EmptyState>;
-
   return (
     <div className="stack live-screen">
       <header className="glass-greeting"><p>WATER QUALITY MONITORING</p><h2>Welcome, {userName}.</h2></header>
-      <PageHeading title="Live monitor" description={`${tank.name} · ${tank.site} · rearing day ${getRaisingDay(tank.rearingStartDate)}/21`} />
+      <PageHeading title="Live monitor" description={tank ? `${tank.name} · ${tank.site} · rearing day ${getRaisingDay(tank.rearingStartDate)}/21` : 'Current water quality and device status'} />
+      {tanks.isLoading || reading.isLoading || thresholds.isLoading ? <LoadingState /> :
+      tanks.isError ? <ErrorState error={tanks.error} onRetry={() => void tanks.refetch()} /> :
+      reading.isError ? <ErrorState error={reading.error} onRetry={() => void reading.refetch()} /> :
+      thresholds.isError ? <ErrorState error={thresholds.error} onRetry={() => void thresholds.refetch()} /> :
+      !tank || !reading.data ? <EmptyState>No tank or reading is available. Check the tank selector and device status.</EmptyState> : <>
       {reading.dataUpdatedAt && Date.now() - reading.dataUpdatedAt > 3 * 3_600_000 && <StaleState updatedAt={reading.dataUpdatedAt} />}
-      <section className="readings-grid" aria-label="Current measured water quality">
-        <ReadingCard parameter="temperature" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'temperature')} showRangeMeter />
-        <ReadingCard parameter="do" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'do')} showRangeMeter />
-        <ReadingCard parameter="ph" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'ph')} showRangeMeter />
+      <section className="live-section" aria-labelledby="live-readings-title">
+        <div className="live-section-heading">
+          <div><h2 id="live-readings-title">Current water quality</h2><p>Latest measured readings for the selected tank</p></div>
+          <span className="live-update"><Clock3 size={15} aria-hidden="true" /> Updated {formatManilaDateTime(reading.data.timestamp)} PHT</span>
+        </div>
+        <div className="readings-grid" aria-label="Current measured water quality">
+          <ReadingCard parameter="temperature" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'temperature')} showRangeMeter showUpdatedTimestamp={false} />
+          <ReadingCard parameter="do" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'do')} showRangeMeter showUpdatedTimestamp={false} />
+          <ReadingCard parameter="ph" reading={reading.data} threshold={thresholds.data?.find((item) => item.parameter === 'ph')} showRangeMeter showUpdatedTimestamp={false} />
+        </div>
+      </section>
+      <section className="card live-panel" aria-labelledby="live-advisories-title">
+        <div className="live-section-heading">
+          <div><h2 id="live-advisories-title">Water-quality advisories</h2><p>Salinity and ammonia are not measured by the sensors. These rule-based advisories are not readings.</p></div>
+        </div>
+        {advisories.isLoading ? <LoadingState label="Loading advisories" /> : advisories.isError ? <ErrorState error={advisories.error} onRetry={() => void advisories.refetch()} /> : (
+          advisories.data?.length ? <div className="glass-advisories">{advisories.data.map((item) => <article className="card glass" key={item.kind}><h3>{item.kind === 'salinity' ? 'Salinity risk' : 'Ammonia risk'}</h3><AdvisoryChip advisory={item} tankId={tankId} /></article>)}</div> : <EmptyState>No advisories are available for this tank.</EmptyState>
+        )}
+      </section>
+      <section className="card live-panel" aria-labelledby="live-device-title">
+          <div className="live-section-heading"><div><h2 id="live-device-title">Device connection</h2><p>Readings are sampled every 3 hours.</p></div></div>
+          {devices.isLoading ? <LoadingState label="Loading device status" /> : devices.isError ? <ErrorState error={devices.error} onRetry={() => void devices.refetch()} /> : device ? (
+            <div className="live-device-details">
+              <div className="inline">
+                <span className={`connection-pill ${deviceOnline ? 'connection-online' : 'connection-offline'}`}><Radio size={15} />{deviceOnline ? 'Online' : 'Offline'}</span>
+                <span className="badge"><Gauge size={14} />Battery {device.batteryPct > 0 ? `${device.batteryPct}%` : 'Unavailable'}</span>
+                {alerts.isLoading ? <span className="badge">Loading alerts…</span> : alerts.isError ? <ErrorState error={alerts.error} onRetry={() => void alerts.refetch()} /> : <span className="badge"><AlertTriangle size={14} />{(alerts.data ?? []).length} open alerts</span>}
+              </div>
+              <p className="small muted">{device.deviceId && <>Device {device.deviceId} · </>}Wi-Fi {device.wifiRssi} dBm · Last seen {formatManilaDateTime(device.lastSeen)} PHT</p>
+            </div>
+          ) : <EmptyState>No device is assigned to this tank.</EmptyState>}
       </section>
       {reading.data.ec != null || reading.data.salinity != null || reading.data.tds != null || reading.data.doSaturation != null || reading.data.doProbeTemperature != null ? (
-        <section className="card">
-          <h2 className="card-title">Expanded sensor readings</h2>
+        <section className="card live-panel" aria-labelledby="live-expanded-title">
+          <div className="live-section-heading"><div><h2 id="live-expanded-title">Expanded sensor readings</h2><p>Additional measurements from the selected tank</p></div></div>
           <div className="advisory-row">
             {reading.data.ec != null && <span className="badge">EC {reading.data.ec.toFixed(2)} uS/cm</span>}
             {reading.data.salinity != null && <span className="badge">Salinity {reading.data.salinity.toFixed(2)} ppm</span>}
@@ -52,34 +78,7 @@ export default function LiveMonitorPage() {
           </div>
         </section>
       ) : null}
-      <section className="card">
-        <h2 className="glass-section-title">Water-quality advisories</h2>
-        <p className="muted small">Salinity and ammonia are not measured by the sensors. These rule-based advisories are not readings.</p>
-        {advisories.isLoading ? <LoadingState label="Loading advisories" /> : advisories.isError ? <ErrorState error={advisories.error} onRetry={() => void advisories.refetch()} /> : (
-          advisories.data?.length ? <div className="glass-advisories">{advisories.data.map((item) => <article className="card glass" key={item.kind}><h3>{item.kind === 'salinity' ? 'Salinity risk' : 'Ammonia risk'}</h3><AdvisoryChip advisory={item} tankId={tankId} /></article>)}</div> : <EmptyState>No advisories are available for this tank.</EmptyState>
-        )}
-      </section>
-      <section className="grid grid-2">
-        <article className="card glass stack">
-          <h2 className="card-title">Last update</h2>
-          <p className="inline"><Clock3 size={18} /><strong>{formatManilaDateTime(reading.data.timestamp)}</strong> PHT</p>
-          <p className="small muted">Readings are sampled every 3 hours. Live mock updates refresh automatically.</p>
-        </article>
-        <article className="card glass stack">
-          <h2 className="card-title">Device connection</h2>
-          {devices.isLoading ? <LoadingState label="Loading device status" /> : devices.isError ? <ErrorState error={devices.error} onRetry={() => void devices.refetch()} /> : device ? (
-            <div className="stack">
-              <div className="inline">
-                <span className={`connection-pill ${deviceOnline ? 'connection-online' : 'connection-offline'}`}><Radio size={15} />{deviceOnline ? 'Online' : 'Offline'}</span>
-                <span className="badge"><Gauge size={14} />Battery {device.batteryPct > 0 ? `${device.batteryPct}%` : 'Unavailable'}</span>
-                {alerts.isLoading ? <span className="badge">Loading alerts…</span> : alerts.isError ? <ErrorState error={alerts.error} onRetry={() => void alerts.refetch()} /> : <span className="badge"><AlertTriangle size={14} />{(alerts.data ?? []).length} open alerts</span>}
-              </div>
-              {device.deviceId && <p className="small muted">Device {device.deviceId}</p>}
-              <p className="small muted">Wi-Fi {device.wifiRssi} dBm · Last seen {formatManilaDateTime(device.lastSeen)} PHT</p>
-            </div>
-          ) : <EmptyState>No device is assigned to this tank.</EmptyState>}
-        </article>
-      </section>
+      </>}
     </div>
   );
 }

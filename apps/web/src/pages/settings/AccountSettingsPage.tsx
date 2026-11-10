@@ -4,23 +4,18 @@ import ProfileDetailsCard from '../../components/settings/ProfileDetailsCard';
 import PrivacySecurityCard from '../../components/settings/PrivacySecurityCard';
 import ConnectedDevicesCard from '../../components/settings/ConnectedDevicesCard';
 import AuditTrailModal from '../../components/settings/AuditTrailModal';
+import '../../styles/account-settings.css';
 
 export default function AccountSettingsPage() {
   const [auditOpen, setAuditOpen] = useState(false);
 
   return (
-    <div className="stack settings-page page-enter">
+    <div className="stack settings-page">
       <PageHeading title="Account settings" description="Manage profile, security, sessions, and connected hardware." />
       <div className="settings-grid">
-        <div className="settings-column">
-          <ProfileDetailsCard />
-        </div>
-        <div className="settings-column">
-          <PrivacySecurityCard onViewAuditTrail={() => setAuditOpen(true)} />
-        </div>
-        <div className="settings-column settings-column-wide">
-          <ConnectedDevicesCard />
-        </div>
+        <ProfileDetailsCard />
+        <PrivacySecurityCard onViewAuditTrail={() => setAuditOpen(true)} />
+        <ConnectedDevicesCard />
       </div>
       <AuditTrailModal open={auditOpen} onClose={() => setAuditOpen(false)} />
     </div>

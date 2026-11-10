@@ -99,7 +99,7 @@ export function HomeScreen({ navigation }: Props<'Home'>) {
   const device = devices.data?.find((item) => item.deviceId === tank?.deviceId);
   const openCount = alerts.data?.filter((item) => item.status !== 'resolved').length ?? 0;
   return <Page>
-    <View style={{ gap: 5 }}><Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1.4 }}>WATER QUALITY MONITORING</Text><Text style={{ color: colors.ink, fontSize: 28, fontWeight: '500' }}>Welcome, {user?.name}.</Text></View>
+    <View style={{ gap: 5 }}><Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>WATER QUALITY MONITORING</Text><Text style={{ color: colors.ink, fontSize: 28, fontWeight: '500' }}>Welcome, {user?.name}.</Text></View>
     <Title detail={tank ? `${tank.name} · ${tank.site} · rearing day ${getRaisingDay(tank.rearingStartDate)}/21` : 'Live water-quality status'}>Live monitor</Title>
     <TankPicker />
     {isLoading || thresholds.isLoading ? <StateMessage message="Loading latest readings and thresholds…" loading /> : isError || thresholds.isError ? <Card><StateMessage message={`Could not load readings or thresholds: ${(thresholds.error ?? null)?.message ?? 'Check your connection.'}`} /><Button label="Retry" onPress={() => { void refetch(); void thresholds.refetch(); }} secondary /></Card> : reading && statuses ? <>

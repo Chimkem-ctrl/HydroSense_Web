@@ -14,8 +14,8 @@ export default function PrivacySecurityCard({
   const [loggedOut, setLoggedOut] = useState(false);
 
   return (
-    <section className="card settings-card">
-      <h2 className="settings-card-title">Privacy &amp; Security</h2>
+    <section className="card settings-card" aria-labelledby="privacy-security-title">
+      <h2 className="settings-card-title" id="privacy-security-title">Privacy &amp; Security</h2>
 
       <h3 className="settings-section-title">Security &amp; Authentication</h3>
       <div className="settings-box">

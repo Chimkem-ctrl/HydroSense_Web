@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationLightTheme, NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import type { LinkingOptions } from '@react-navigation/native';
@@ -11,9 +11,10 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
-import { Activity, AlertTriangle, ClipboardList, Database, LayoutDashboard, Settings, Wifi } from 'lucide-react-native';
+import { Activity, AlertTriangle, Database, LayoutDashboard, Wifi } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { MainTabParamList, RootStackParamList } from './navigation';
+import { isBottomBarRoute } from './navigation';
+import type { BottomBarRoute, MainTabParamList, RootStackParamList } from './navigation';
 import {
   AlertDetailScreen,
   AlertsScreen,
@@ -80,32 +81,31 @@ const tabIcons = {
   Trends: Activity,
   History: Database,
   Status: Wifi,
-  Review: ClipboardList,
-  Settings,
-};
+} satisfies Record<BottomBarRoute, typeof Activity>;
 
 function MobileTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return <View style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 8) }}>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 8, paddingTop: 6, gap: 2 }}>
+    <View style={{ flexDirection: 'row', paddingHorizontal: 8, paddingTop: 6, gap: 2 }}>
       {state.routes.map((route, index) => {
+        if (!isBottomBarRoute(route.name)) return null;
         const selected = state.index === index;
         const options = descriptors[route.key].options;
         const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : options.title ?? route.name;
-        const Icon = tabIcons[route.name as keyof typeof tabIcons];
+        const Icon = tabIcons[route.name];
         return <Pressable key={route.key} accessibilityRole="tab" accessibilityState={{ selected }} accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
           onPress={() => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (!selected && !event.defaultPrevented) navigation.navigate(route.name, route.params);
           }}
           onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-          style={{ minWidth: 74, minHeight: 55, alignItems: 'center', justifyContent: 'center', borderRadius: 16, gap: 3, backgroundColor: selected ? colors.selected : 'transparent' }}>
-          {Icon && <Icon size={20} color={selected ? colors.teal : colors.muted} strokeWidth={2} />}
+          style={{ flex: 1, minHeight: 55, alignItems: 'center', justifyContent: 'center', borderRadius: 16, gap: 3, backgroundColor: selected ? colors.selected : 'transparent' }}>
+          <Icon size={20} color={selected ? colors.teal : colors.muted} strokeWidth={2} />
           <Text style={{ fontSize: 11, fontWeight: selected ? '700' : '500', color: selected ? colors.teal : colors.muted }}>{label}</Text>
         </Pressable>;
       })}
-    </ScrollView>
+    </View>
   </View>;
 }
 

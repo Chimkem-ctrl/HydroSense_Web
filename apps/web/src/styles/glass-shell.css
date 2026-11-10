@@ -1,3 +1,24 @@
+:root {
+  --scrollbar-thumb: #647d9f;
+  --scrollbar-track: #e2ecfa;
+}
+:root[data-theme='dark'] {
+  --scrollbar-thumb: #819bc4;
+  --scrollbar-track: #182a54;
+}
+html, .glass-shell .side-nav, .glass-shell .table-wrap, .glass-shell .popover, .glass-shell .dialog, .glass-shell .dialog-backdrop, .glass-shell .audit-trail-modal, .auth-background .terms-modal {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+@supports not (scrollbar-color: auto) {
+  html::-webkit-scrollbar, .glass-shell .side-nav::-webkit-scrollbar, .glass-shell .table-wrap::-webkit-scrollbar, .glass-shell .popover::-webkit-scrollbar, .glass-shell .dialog::-webkit-scrollbar, .glass-shell .dialog-backdrop::-webkit-scrollbar, .glass-shell .audit-trail-modal::-webkit-scrollbar, .auth-background .terms-modal::-webkit-scrollbar { width: 10px; height: 10px; }
+  html::-webkit-scrollbar-track, .glass-shell .side-nav::-webkit-scrollbar-track, .glass-shell .table-wrap::-webkit-scrollbar-track, .glass-shell .popover::-webkit-scrollbar-track, .glass-shell .dialog::-webkit-scrollbar-track, .glass-shell .dialog-backdrop::-webkit-scrollbar-track, .glass-shell .audit-trail-modal::-webkit-scrollbar-track, .auth-background .terms-modal::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+  html::-webkit-scrollbar-thumb, .glass-shell .side-nav::-webkit-scrollbar-thumb, .glass-shell .table-wrap::-webkit-scrollbar-thumb, .glass-shell .popover::-webkit-scrollbar-thumb, .glass-shell .dialog::-webkit-scrollbar-thumb, .glass-shell .dialog-backdrop::-webkit-scrollbar-thumb, .glass-shell .audit-trail-modal::-webkit-scrollbar-thumb, .auth-background .terms-modal::-webkit-scrollbar-thumb { border: 2px solid var(--scrollbar-track); border-radius: 999px; background: var(--scrollbar-thumb); }
+}
+@media (forced-colors: active) {
+  html, .glass-shell .side-nav, .glass-shell .table-wrap, .glass-shell .popover, .glass-shell .dialog, .glass-shell .dialog-backdrop, .glass-shell .audit-trail-modal, .auth-background .terms-modal { scrollbar-color: auto; }
+}
+
 .glass-shell, [data-theme='dark'] .glass-shell {
   --text: var(--text-primary);
   --muted: var(--text-secondary);
@@ -19,8 +40,9 @@
   background-attachment: fixed;
 }
 .glass-shell, .glass-shell *, .auth-background, .auth-background * { transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
-.glass-shell .sidebar { inset: 16px auto 16px 16px; width: 220px; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: var(--glass-bg-strong); box-shadow: var(--glass-shadow); padding: 18px 12px 12px; }
-.glass-shell .main-area { margin-left: 252px; }
+.glass-shell .sidebar { inset: 16px auto 16px 16px; width: 244px; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: var(--glass-bg-strong); box-shadow: var(--glass-shadow); padding: 18px 12px 12px; }
+.glass-shell .main-area { margin-left: 276px; }
+.glass-shell .side-nav { min-height: 0; scrollbar-gutter: stable; }
 .glass-shell .brand-mark { background: var(--button-gradient); color: var(--on-accent); }
 .glass-shell .nav-link { border-radius: var(--radius-md); }
 .glass-shell .nav-link:hover, .glass-shell .nav-link[aria-current='page'] { background: var(--accent-soft); color: var(--accent); }
@@ -84,6 +106,7 @@
 
 @media (max-width: 1100px) {
   .glass-shell .sidebar { width: 72px; }
+  .glass-shell .side-nav { scrollbar-gutter: stable both-edges; }
   .glass-shell .main-area { margin-left: 104px; }
   .page-controls { position: relative; top: auto; right: auto; max-width: none; flex-wrap: wrap; justify-content: flex-start; margin-bottom: 24px; }
   .glass-shell .page-heading, .glass-shell .glass-greeting { padding-right: 0; }
@@ -91,6 +114,7 @@
 }
 @media (max-width: 700px) {
   .glass-shell .sidebar { width: min(300px, 86vw); }
+  .glass-shell .side-nav { scrollbar-gutter: stable; }
   .glass-shell .main-area { margin-left: 0; }
   .page-controls { gap: 8px; margin-bottom: 18px; }
 }

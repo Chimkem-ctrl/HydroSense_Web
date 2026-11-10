@@ -8,6 +8,7 @@ import { useRole } from '../app/auth/RoleContext';
 import { authService, SUBSCRIBED_HATCHERIES } from '../services/authService';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
+import '../styles/admin-users.css';
 
 export function AdminUsersPage() {
   const { userName } = useRole();
@@ -73,13 +74,17 @@ export function AdminUsersPage() {
     },
   });
   return (
-    <div className="stack">
+    <div className="stack admin-users-page">
       <PageHeading title="Users & roles" description={`Team accounts · tier node limit ${tierConfig.nodeLimit}. Role changes apply to the frontend mock API only until the backend is connected.`} />
       <StaleQueryState updatedAt={users.dataUpdatedAt} />
-      <section className="card">
-        <h2 className="card-title">Pending requests</h2>
+      <section className="card admin-users-panel" aria-labelledby="pending-requests-title">
+        <div className="admin-users-heading">
+          <div><h2 id="pending-requests-title">Pending requests</h2><p>Review new account requests and assign a role.</p></div>
+          {!pendingRequests.isLoading && !pendingRequests.isError && pendingRequests.data && <span className="admin-users-count">{pendingRequests.data.length} pending</span>}
+        </div>
         {pendingRequests.isLoading ? <LoadingState /> : pendingRequests.isError ? <ErrorState error={pendingRequests.error} onRetry={() => void pendingRequests.refetch()} /> : !pendingRequests.data?.length ? <EmptyState>No account requests are awaiting review.</EmptyState> : (
-          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Employee ID</th><th>Hatchery</th><th>Date</th><th>Review</th></tr></thead><tbody>
+          <><p className="admin-users-scroll-hint">Scroll horizontally to see all request details and actions.</p>
+          <div className="table-wrap" role="region" aria-label="Pending requests table" tabIndex={0}><table className="admin-users-table"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Employee ID</th><th scope="col">Hatchery</th><th scope="col">Date</th><th scope="col">Review</th></tr></thead><tbody>
             {pendingRequests.data.map((request) => (
               <tr key={request.id}>
                 <td>{request.firstName} {request.lastName}</td>
@@ -88,7 +93,7 @@ export function AdminUsersPage() {
                 <td>{SUBSCRIBED_HATCHERIES.find((hatchery) => hatchery.id === request.hatcheryId)?.name ?? '—'}</td>
                 <td>{formatManilaDateTime(request.createdAt)} PHT</td>
                 <td>
-                  <div className="inline">
+                  <div className="admin-review-actions">
                     <label className="field"><span className="sr-only">Approval role for {request.firstName} {request.lastName}</span>
                       <select value={selectedRoles[request.id] ?? ''} onChange={(event) => setSelectedRoles((roles) => ({ ...roles, [request.id]: (event.target.value || undefined) as Role | undefined }))}>
                         <option value="">Select role</option><option value="operator">Operator</option><option value="manager">Manager</option><option value="admin">Admin</option>
@@ -102,22 +107,27 @@ export function AdminUsersPage() {
                 </td>
               </tr>
             ))}
-          </tbody></table></div>
+          </tbody></table></div></>
         )}
         {approveRequest.isError && <ErrorState error={approveRequest.error} />}
         {rejectRequest.isError && <ErrorState error={rejectRequest.error} />}
       </section>
-      {!tierConfig.teamAccounts ? <section className="card"><h2 className="card-title">Team accounts require an upgrade</h2><p className="muted">Team account management is available on premium and enterprise tiers.</p></section> : users.isLoading ? <LoadingState /> : users.isError ? <ErrorState error={users.error} onRetry={() => void users.refetch()} /> : !users.data?.length ? <EmptyState>No team users are registered.</EmptyState> : (
-        <section className="card">
-          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Site</th><th>Role</th><th>Last active</th><th>Actions</th></tr></thead><tbody>
+      <section className="card admin-users-panel" aria-labelledby="team-accounts-title">
+        <div className="admin-users-heading">
+          <div><h2 id="team-accounts-title">Team accounts</h2><p>View team members and manage their roles.</p></div>
+          {tierConfig.teamAccounts && !users.isLoading && !users.isError && users.data && <span className="admin-users-count">{users.data.length} {users.data.length === 1 ? 'account' : 'accounts'}</span>}
+        </div>
+        {!tierConfig.teamAccounts ? <p className="muted">Team account management is available on premium and enterprise tiers.</p> : users.isLoading ? <LoadingState /> : users.isError ? <ErrorState error={users.error} onRetry={() => void users.refetch()} /> : !users.data?.length ? <EmptyState>No team users are registered.</EmptyState> : (
+          <><p className="admin-users-scroll-hint">Scroll horizontally to see all account details and actions.</p>
+          <div className="table-wrap" role="region" aria-label="Team accounts table" tabIndex={0}><table className="admin-users-table"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Site</th><th scope="col">Role</th><th scope="col">Last active</th><th scope="col">Actions</th></tr></thead><tbody>
             {users.data.map((user) => <tr key={user.id}><td>{user.name}</td><td>{user.email}</td><td>{user.site}</td><td>{user.role === 'admin' ? <span>Admin</span> : <label className="field"><span className="sr-only">Role for {user.name}</span><select value={user.role} onChange={(event) => mutation.mutate({ userId: user.id, role: event.target.value as Exclude<Role, 'admin'> })}><option value="operator">Operator</option><option value="manager">Manager</option></select></label>}</td><td>{formatManilaDateTime(user.lastActive)} PHT</td><td>{user.role === 'admin' ? '—' : <button type="button" className="button" disabled={removeAccount.isPending} onClick={() => {
               if (window.confirm(`Remove the account for ${user.name}? This cannot be undone.`)) removeAccount.mutate(user.id);
             }}>Remove account</button>}</td></tr>)}
-          </tbody></table></div>
+          </tbody></table></div></>
+        )}
           {mutation.isError && <ErrorState error={mutation.error} />}
           {removeAccount.isError && <ErrorState error={removeAccount.error} />}
-        </section>
-      )}
+      </section>
     </div>
   );
 }
@@ -137,5 +147,11 @@ export function AdminLogsPage() {
 
 export function ComingSoonPage({ feature }: { feature: string }) {
   const available = feature.toLowerCase().includes('fleet') ? tierConfig.fleetView : tierConfig.batchTracking;
-  return <section className="card stack"><PageHeading title={`${feature} · Coming soon`} description={available ? 'This Enterprise feature is planned but not available in the pilot dashboard.' : 'This feature requires the Enterprise tier.'} /><p className="muted">No batch or fleet data is displayed until the feature is implemented.</p></section>;
+  return <div className="stack coming-soon-page">
+    <PageHeading title={`${feature} · Coming soon`} description={available ? 'This Enterprise feature is planned but not available in the pilot dashboard.' : 'This feature requires the Enterprise tier.'} />
+    <section className="card coming-soon-card">
+      <h2 className="card-title">Not available yet</h2>
+      <p className="muted">No batch or fleet data is displayed until the feature is implemented.</p>
+    </section>
+  </div>;
 }

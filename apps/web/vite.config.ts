@@ -13,5 +13,11 @@ export default defineConfig({
     environment: 'jsdom',
     environmentOptions: { jsdom: { url: 'http://localhost/' } },
     setupFiles: './src/test/setup.ts',
+    env: {
+      VITE_DATA_MODE: 'mock',
+      VITE_API_BASE_URL: '',
+      VITE_SUPABASE_URL: '',
+      VITE_SUPABASE_PUBLISHABLE_KEY: '',
+    },
   },
 });

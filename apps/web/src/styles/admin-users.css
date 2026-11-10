@@ -1,0 +1,17 @@
+.admin-users-page { gap: 20px; }
+.admin-users-page .admin-users-panel { display: grid; min-width: 0; gap: 16px; }
+.admin-users-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.admin-users-heading h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.admin-users-heading p { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; }
+.admin-users-count { display: inline-flex; align-items: center; min-height: 30px; padding: 3px 10px; border: 1px solid var(--control-border); border-radius: var(--radius-pill); color: var(--text-secondary); background: var(--control-fill); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.admin-users-page .admin-users-scroll-hint { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.admin-users-page .table-wrap { position: relative; min-width: 0; }
+.admin-users-page .admin-users-table { min-width: 850px; }
+.admin-users-page .admin-users-table th, .admin-users-page .admin-users-table td { padding: 12px; vertical-align: middle; }
+.admin-users-page .admin-users-table td { overflow-wrap: anywhere; }
+.admin-users-page .admin-users-table td:first-child { font-weight: 700; }
+.admin-users-page .admin-users-table tr:last-child td { border-bottom: 0; }
+.admin-users-page .admin-users-table .field select { min-width: 120px; }
+.admin-users-page .admin-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 280px; }
+.admin-users-page .admin-users-table .button { white-space: nowrap; }
+.admin-users-page .admin-users-panel > .muted { margin: 0; }
