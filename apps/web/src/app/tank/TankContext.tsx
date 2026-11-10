@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
+import { useAuth } from '../auth/RoleContext';
 
 interface TankSelection {
   tankId: string;
@@ -11,7 +12,12 @@ interface TankSelection {
 const TankContext = createContext<TankSelection | null>(null);
 
 export function TankProvider({ children }: { children: ReactNode }) {
-  const { data: tanks = [] } = useQuery({ queryKey: ['tanks'], queryFn: () => api.listTanks() });
+  const user = useAuth();
+  const { data: tanks = [] } = useQuery({
+    queryKey: ['tanks'],
+    queryFn: () => api.listTanks(),
+    enabled: Boolean(user?.role),
+  });
   const [selectedId, setSelectedId] = useState('');
   const tankId = tanks.some((tank) => tank.id === selectedId) ? selectedId : tanks[0]?.id ?? '';
   return <TankContext.Provider value={{ tankId, setTankId: setSelectedId }}>{children}</TankContext.Provider>;

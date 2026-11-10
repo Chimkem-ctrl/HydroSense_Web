@@ -37,8 +37,8 @@ export const POSITIONS_BY_ROLE: Record<RequestedRole, readonly string[]> = {
 };
 
 export const DEMO_ADMIN_CREDENTIALS = {
-  email: import.meta.env.VITE_ADMIN_EMAIL?.trim() || 'admin@hydrosense.demo',
-  password: import.meta.env.VITE_ADMIN_PASSWORD || 'AdminDemo!2026',
+  email: import.meta.env.VITE_ADMIN_EMAIL?.trim() || 'hydrosense.team@admin.com',
+  password: import.meta.env.VITE_ADMIN_PASSWORD || 'hydrosense_team_2026',
 } as const;
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL

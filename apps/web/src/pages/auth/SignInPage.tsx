@@ -89,7 +89,6 @@ export default function SignInPage() {
             <strong>Administrator demo access</strong>
             <span>Email: {DEMO_ADMIN_CREDENTIALS.email}</span>
             <span>Password: {DEMO_ADMIN_CREDENTIALS.password}</span>
-            <small>Demo only: credentials are checked in this browser.</small>
           </div>}
           <p className="auth-demo-disclaimer">Demo only: credentials are checked in this browser. Do not use a real password.</p>
         </GlassPanel>

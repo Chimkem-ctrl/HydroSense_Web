@@ -53,7 +53,7 @@ export default function LiveMonitorPage() {
         </section>
       ) : null}
       <section className="card">
-        <h2 className="card-title">Water-quality advisories</h2>
+        <h2 className="glass-section-title">Water-quality advisories</h2>
         <p className="muted small">Salinity and ammonia are not measured by the sensors. These rule-based advisories are not readings.</p>
         {advisories.isLoading ? <LoadingState label="Loading advisories" /> : advisories.isError ? <ErrorState error={advisories.error} onRetry={() => void advisories.refetch()} /> : (
           advisories.data?.length ? <div className="glass-advisories">{advisories.data.map((item) => <article className="card glass" key={item.kind}><h3>{item.kind === 'salinity' ? 'Salinity risk' : 'Ammonia risk'}</h3><AdvisoryChip advisory={item} tankId={tankId} /></article>)}</div> : <EmptyState>No advisories are available for this tank.</EmptyState>
