@@ -101,7 +101,8 @@ Deno.serve(async (request) => {
     });
   }
 
-  if (action === "/v1/ingest/readings" && request.method === "POST") {
+  if ((action === "/v1/ingest/readings" || action === "/v1/hardware/thresholds" || action === "/v1/hardware/sms/claim" ||
+       action === "/v1/hardware/sms/complete") && request.method === "POST") {
     const hardwareKey = Deno.env.get("HARDWARE_INGEST_API_KEY");
     const suppliedKey = request.headers.get("x-hardware-api-key");
     if (!hardwareKey || suppliedKey !== hardwareKey) {
@@ -110,6 +111,35 @@ Deno.serve(async (request) => {
 
     const reading = await request.json();
     const deviceId = String(reading.deviceId ?? "").trim();
+    if (action !== "/v1/ingest/readings") {
+      if (!deviceId) return json({ error: "deviceId is required." }, 400);
+      const { data: tank, error: tankError } = await admin.from("tanks")
+        .select("id").eq("device_id", deviceId).maybeSingle();
+      if (tankError) return json({ error: tankError.message }, 500);
+      if (!tank) return json({ error: "Device is not linked to a tank." }, 404);
+      if (action === "/v1/hardware/thresholds") {
+        const { data, error } = await admin.from("thresholds").select("parameter,min_value,max_value");
+        if (error) return json({ error: error.message }, 500);
+        return json({ thresholds: data });
+      }
+      if (action === "/v1/hardware/sms/claim") {
+        const { data, error } = await admin.rpc("claim_alert_sms", { p_tank_id: tank.id });
+        if (error) return json({ error: error.message }, 500);
+        const item = data?.[0];
+        return json({ message: item ? { id: item.id, phone: item.phone, text: item.message } : null });
+      }
+      if (typeof reading.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reading.id) ||
+          !["sent", "failed"].includes(reading.status)) {
+        return json({ error: "A valid message id and status are required." }, 400);
+      }
+      const { data, error } = await admin.from("sms_alert_queue")
+        .update({ status: reading.status, completed_at: new Date().toISOString() })
+        .eq("id", reading.id).eq("tank_id", tank.id).eq("status", "claimed")
+        .select("id").maybeSingle();
+      if (error) return json({ error: error.message }, 500);
+      if (!data) return json({ error: "Claimed SMS not found for this device." }, 404);
+      return json({ updated: true });
+    }
     const temperature = Number(reading.temperature);
     const doMgL = Number(reading.doMgL);
     const ph = Number(reading.ph);
@@ -122,11 +152,30 @@ Deno.serve(async (request) => {
     if (tankError) return json({ error: tankError.message }, 500);
     if (!tank) return json({ error: "Device is not linked to a tank." }, 404);
 
+    const buffered = reading.sourceId !== undefined || reading.recordedAt !== undefined || reading.historical !== undefined;
+    const sourceIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let recordedAt: string | undefined;
+    let live = true;
+    if (buffered) {
+      if (typeof reading.sourceId !== "string" || !sourceIdPattern.test(reading.sourceId) ||
+          typeof reading.recordedAt !== "string" || typeof reading.historical !== "boolean" ||
+          !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(reading.recordedAt)) {
+        return json({ error: "Buffered readings require a sourceId, UTC recordedAt and historical flag." }, 400);
+      }
+      const observed = Date.parse(reading.recordedAt);
+      if (!Number.isFinite(observed) || new Date(observed).toISOString() !== reading.recordedAt.replace("Z", ".000Z") ||
+          observed < Date.UTC(2023, 0, 1) || observed > Date.now() + 30000) {
+        return json({ error: "Invalid reading timestamp." }, 400);
+      }
+      recordedAt = reading.recordedAt;
+      live = !reading.historical && Date.now() - observed <= 90000;
+    }
+
     const optionalNumber = (value: unknown) => {
       const number = Number(value);
       return Number.isFinite(number) ? number : null;
     };
-    const { data, error } = await admin.from("readings").insert({
+    const row = {
       tank_id: tank.id,
       temperature,
       do_mg_l: doMgL,
@@ -136,10 +185,20 @@ Deno.serve(async (request) => {
       tds_ppm: optionalNumber(reading.tds),
       do_saturation_pct: optionalNumber(reading.doSaturation),
       do_probe_temperature: optionalNumber(reading.doProbeTemperature),
-    }).select("id,timestamp").single();
-    if (error) return json({ error: error.message }, 400);
+      ...(buffered ? { source_id: reading.sourceId, timestamp: recordedAt } : {}),
+    };
+    let { data, error } = await admin.from("readings").insert(row).select("id,timestamp").single();
+    if (error && buffered && error.code === "23505") {
+      const existing = await admin.from("readings").select("id,timestamp")
+        .eq("tank_id", tank.id).eq("source_id", reading.sourceId).single();
+      data = existing.data;
+      error = existing.error;
+    }
+    if (error || !data) return json({ error: error?.message ?? "Reading not found after insert." }, 400);
 
-    const { data: thresholds } = await admin.from("thresholds").select("*");
+    const { data: thresholds, error: thresholdsError } = live
+      ? await admin.from("thresholds").select("*") : { data: [], error: null };
+    if (thresholdsError) return json({ error: thresholdsError.message }, 500);
     const checkAndCreateAlert = async (parameter: string, value: number, thresholdRow: { min_value?: number; max_value?: number } | undefined) => {
       if (!thresholdRow || value === null) return;
       const min = thresholdRow.min_value;
@@ -147,13 +206,14 @@ Deno.serve(async (request) => {
       const violated = (min !== null && value < min) || (max !== null && value > max);
       if (!violated) return;
 
-      const { data: recentAlert } = await admin
+      const { data: recentAlert, error: recentAlertError } = await admin
         .from("alerts")
         .select("id")
         .eq("tank_id", tank.id)
         .eq("parameter", parameter)
         .eq("status", "open")
         .maybeSingle();
+      if (recentAlertError) throw recentAlertError;
       if (recentAlert) return;
 
       const thresholdStr = [
@@ -162,7 +222,7 @@ Deno.serve(async (request) => {
       ].filter(Boolean).join(" or ");
 
       const severity = Math.abs(value - (min ?? max ?? 0)) > 2 ? "critical" : "warning";
-      await admin.from("alerts").insert({
+      const { error: alertError } = await admin.from("alerts").insert({
         tank_id: tank.id,
         parameter,
         value,
@@ -170,6 +230,7 @@ Deno.serve(async (request) => {
         severity,
         status: "open",
       });
+      if (alertError) throw alertError;
     };
 
     const temperatureThreshold = thresholds?.find((t) => t.parameter === "temperature");
