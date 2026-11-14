@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Reading } from '@hydrosense/shared';
-import { nightRanges, prepareTrendRows } from './trendData';
+import { nightRanges, prepareTrendRows, trendMarkerIndices } from './trendData';
 
 function reading(timestamp: string): Reading {
   return { id: timestamp, tankId: 'tank-a', timestamp, temperature: 30, doMgL: 5, ph: 7 };
@@ -19,5 +19,12 @@ describe('trend chart data', () => {
     const rows = [reading('2025-01-02T03:00:00+08:00'), reading('2025-01-02T09:00:00+08:00')];
     expect(nightRanges(rows)).toEqual([{ x1: Date.parse('2025-01-01T22:00:00+08:00'), x2: Date.parse('2025-01-02T06:00:00+08:00') }]);
     expect(nightRanges([])).toEqual([]);
+  });
+
+  it('marks the minimum, maximum and latest reading without duplicating overlapping points', () => {
+    expect(trendMarkerIndices([3, 1, 5, 4])).toEqual([1, 2, 3]);
+    expect(trendMarkerIndices([2, 1, 1])).toEqual([1, 0, 2]);
+    expect(trendMarkerIndices([5])).toEqual([0]);
+    expect(trendMarkerIndices([])).toEqual([]);
   });
 });

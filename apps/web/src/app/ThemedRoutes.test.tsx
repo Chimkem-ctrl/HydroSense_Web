@@ -33,10 +33,33 @@ afterEach(() => {
   queryClient.clear();
   vi.unstubAllGlobals();
   window.localStorage.removeItem('hydrosense.auth.session.v2');
+  window.localStorage.removeItem('hydrosense.auth.accounts.v2');
   window.localStorage.removeItem('hydrosense.theme');
 });
 
 describe('themed dashboard routes', () => {
+  it.each(['operator', 'manager', 'admin'] as const)('exposes the %s role on the shell and sidebar', async (role) => {
+    if (role !== 'admin') {
+      const user = {
+        id: `test-${role}`,
+        firstName: 'Test',
+        lastName: role,
+        email: `${role}@example.com`,
+        role,
+        requestedRole: role,
+        status: 'approved',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      };
+      window.localStorage.setItem('hydrosense.auth.accounts.v2', JSON.stringify([{ user, passwordSalt: 'salt', passwordHash: 'hash' }]));
+      window.localStorage.setItem('hydrosense.auth.session.v2', JSON.stringify({ userId: user.id }));
+    }
+    window.history.replaceState({}, '', '/tanks');
+    const { container } = render(<App />);
+    await screen.findByRole('heading', { name: 'Tank overview', level: 1 });
+    expect(container.querySelector('.app-shell')?.getAttribute('data-role')).toBe(role);
+    expect(screen.getByText(`Pilot workspace · ${role.toUpperCase()}`)).not.toBeNull();
+  });
+
   it.each(routes.flatMap(([path, title]) => (['light', 'dark'] as const).map((theme) => [path, title, theme] as const)))('renders %s in the shared shell (%s, %s)', async (path, title, theme) => {
     window.history.replaceState({}, '', path);
     window.localStorage.setItem('hydrosense.theme', theme);

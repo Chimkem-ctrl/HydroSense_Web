@@ -5,6 +5,7 @@ import type { DashboardUser, Role } from '@hydrosense/shared';
 import { api } from '../app/api';
 import { tierConfig } from '../app/config';
 import { useRole } from '../app/auth/RoleContext';
+import { usePendingRequests } from '../app/data/hooks';
 import { authService, SUBSCRIBED_HATCHERIES } from '../services/authService';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
@@ -38,7 +39,7 @@ export function AdminUsersPage() {
     },
     enabled: tierConfig.teamAccounts,
   });
-  const pendingRequests = useQuery({ queryKey: ['pending-requests'], queryFn: () => authService.listPendingRequests() });
+  const pendingRequests = usePendingRequests();
   const [selectedRoles, setSelectedRoles] = useState<Record<string, Role | undefined>>({});
   const mutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: Exclude<Role, 'admin'> }) => {

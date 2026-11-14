@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ReferenceArea, ReferenceDot, ResponsiveContainer, CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, ReferenceArea, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { calculateParameterStatistics, formatManilaDateTime } from '@hydrosense/shared';
 import type { MeasuredParameter } from '@hydrosense/shared';
 import { useSelectedTank } from '../app/tank/TankContext';
@@ -8,14 +8,14 @@ import { api } from '../app/api';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeading } from '../components/common/PageHeading';
 import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
-import { nightRanges, prepareTrendRows } from './trendData';
+import { nightRanges, prepareTrendRows, trendMarkerIndices } from './trendData';
 
 type Range = '24h' | '7d' | 'cycle';
 
-const parameters: Array<{ key: MeasuredParameter; title: string; unit: string; color: string; min: number; max: number }> = [
-  { key: 'temperature', title: 'Temperature', unit: '°C', color: 'var(--accent)', min: 28, max: 32 },
-  { key: 'do', title: 'Dissolved oxygen', unit: 'mg/L', color: 'var(--chart-do)', min: 4, max: 10 },
-  { key: 'ph', title: 'pH', unit: 'pH', color: 'var(--chart-ph)', min: 6, max: 8 },
+const parameters: Array<{ key: MeasuredParameter; title: string; unit: string; min: number; max: number }> = [
+  { key: 'temperature', title: 'Temperature', unit: '°C', min: 28, max: 32 },
+  { key: 'do', title: 'Dissolved oxygen', unit: 'mg/L', min: 4, max: 10 },
+  { key: 'ph', title: 'pH', unit: 'pH', min: 6, max: 8 },
 ];
 
 export default function TrendsPage() {
@@ -60,7 +60,7 @@ export default function TrendsPage() {
   return (
     <div className="stack trends-screen">
       <PageHeading title="Trend charts" description="Three-hour readings with parameter-safe bands and the overnight window highlighted." actions={
-        <div className="tabs" role="group" aria-label="Trend range">
+        <div className="tabs trend-range" role="group" aria-label="Trend range">
           {([['24h', '24 hours', 1], ['7d', '7 days', 7], ['cycle', 'Full cycle', 21]] as const).map(([value, label, days]) => (
             <button type="button" className="tab" aria-pressed={range === value} disabled={days > tierConfig.retentionDays} key={value} onClick={() => setRange(value)}>{label}</button>
           ))}
@@ -85,24 +85,31 @@ export default function TrendsPage() {
             const values = rows.map((row) => parameter.key === 'do' ? row.doMgL : row[parameter.key]);
             const bandMin = min ?? Math.min(max ?? parameter.min, ...values);
             const bandMax = max ?? Math.max(min ?? parameter.max, ...values);
+            const markers = trendMarkerIndices(values);
             return (
             <article className="card glass trend-chart-card" key={parameter.key}>
               <h2 className="card-title">{parameter.title}</h2>
               <p className="small muted">Safe range: {safeRange} · Overnight: 22:00–06:00 PHT</p>
               <div className="trend-chart-frame" role="img" aria-label={`${parameter.title} trend chart. Safe range ${safeRange}; overnight windows highlighted.`}>
                 <ResponsiveContainer>
-                  <LineChart data={chartRows} margin={{ top: 10, right: 12, bottom: 10, left: 0 }}>
-                    <CartesianGrid stroke="var(--control-border)" strokeDasharray="4 4" />
-                    {(min !== undefined || max !== undefined) && <ReferenceArea y1={bandMin} y2={bandMax} ifOverflow="hidden" fill="var(--ok)" fillOpacity={0.09} />}
-                    {ranges.map((item) => <ReferenceArea key={item.x1} x1={item.x1} x2={item.x2} fill="var(--chart-night)" fillOpacity={0.12} />)}
-                    <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--text-secondary)" tickFormatter={(value: number) => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', ...(range !== '24h' ? { month: 'short', day: 'numeric' } : {}), hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value))} minTickGap={30} />
-                    <YAxis domain={['auto', 'auto']} width={48} stroke="var(--text-secondary)" />
-                    <Tooltip contentStyle={{ background: 'var(--glass-bg-strong)', border: '1px solid var(--control-border)', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-primary)' }} labelFormatter={(value) => `${formatManilaDateTime(new Date(Number(value)))} PHT`} formatter={(value) => [`${Number(value).toFixed(2)} ${parameter.unit}`, parameter.title]} />
-                    <Line dataKey={parameter.key === 'do' ? 'doMgL' : parameter.key} name={parameter.title} stroke={parameter.color} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <AreaChart data={chartRows} margin={{ top: 10, right: 12, bottom: 10, left: 0 }}>
+                    <defs>
+                      <linearGradient id={`trend-fill-${parameter.key}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--trend-line)" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="var(--trend-line)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    {(min !== undefined || max !== undefined) && <ReferenceArea y1={bandMin} y2={bandMax} ifOverflow="hidden" fill="var(--trend-line)" fillOpacity={0.09} />}
+                    {ranges.map((item) => <ReferenceArea key={item.x1} x1={item.x1} x2={item.x2} fill="var(--trend-axis-label)" fillOpacity={0.12} />)}
+                    <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} axisLine={false} tickLine={false} tick={{ fill: 'var(--trend-axis-label)' }} tickFormatter={(value: number) => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', ...(range !== '24h' ? { month: 'short', day: 'numeric' } : {}), hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value))} minTickGap={30} />
+                    <YAxis domain={['auto', 'auto']} width={48} axisLine={false} tickLine={false} tick={{ fill: 'var(--trend-axis-label)' }} />
+                    <Tooltip contentStyle={{ background: 'var(--trend-tooltip-background)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--trend-tooltip-border)', borderRadius: 12, color: 'var(--c-50)' }} labelStyle={{ color: 'var(--c-50)' }} itemStyle={{ color: 'var(--trend-line)' }} labelFormatter={(value) => `${formatManilaDateTime(new Date(Number(value)))} PHT`} formatter={(value) => [`${Number(value).toFixed(2)} ${parameter.unit}`, parameter.title]} />
+                    <Area type="monotone" dataKey={parameter.key === 'do' ? 'doMgL' : parameter.key} name={parameter.title} stroke="var(--trend-line)" strokeWidth={3} strokeLinecap="round" fill={`url(#trend-fill-${parameter.key})`} fillOpacity={1} dot={false} activeDot={false} isAnimationActive={false} />
+                    {markers.map((index) => <ReferenceDot key={index} x={chartRows[index].timestamp} y={values[index]} r={4} fill={index === values.length - 1 ? 'var(--trend-line)' : 'none'} stroke="var(--trend-line)" strokeWidth={2} />)}
                     {alerts.filter((alert) => alert.parameter.toLowerCase() === parameter.key || (parameter.key === 'do' && ['do', 'dissolved oxygen', 'dissolved_oxygen'].includes(alert.parameter.toLowerCase()))).map((alert) => (
                       <ReferenceDot key={alert.id} x={Date.parse(alert.createdAt)} y={alert.value} r={5} fill={alert.severity === 'critical' ? 'var(--critical-text)' : 'var(--warn-text)'} stroke="var(--glass-bg-strong)" />
                     ))}
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </article>

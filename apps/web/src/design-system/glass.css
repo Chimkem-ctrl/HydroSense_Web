@@ -1,5 +1,5 @@
-.glass, .glass-shell .card, .auth-background .glass-panel {
-  background: linear-gradient(135deg, var(--glass-highlight-start), var(--glass-highlight-end)), var(--glass-bg);
+.glass {
+  background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border: 1px solid var(--glass-border);
@@ -10,9 +10,48 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass-shell .card, .auth-background .glass-panel { background: var(--glass-bg-strong); }
+  .glass { background: var(--glass-bg-strong); }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .glass, .glass-shell .card, .auth-background .glass-panel { background: var(--glass-bg-strong); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass { background: var(--glass-bg-strong); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+.glass-card,
+.glass-shell .card,
+.glass-shell .popover,
+.glass-shell .account-menu-popover,
+.glass-shell .glass-panel,
+.auth-background .glass-panel {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.glass-card,
+.glass-shell .card,
+.glass-shell .popover,
+.glass-shell .account-menu-popover,
+.glass-shell .glass-panel,
+.auth-background .glass-panel {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-card, .glass-shell .card, .glass-shell .popover, .glass-shell .account-menu-popover,
+  .glass-shell .glass-panel, .auth-background .glass-panel { background: rgb(22, 22, 22); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card, .glass-shell .card, .glass-shell .popover, .glass-shell .account-menu-popover,
+  .glass-shell .glass-panel, .auth-background .glass-panel {
+    background: rgb(22, 22, 22);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }

@@ -19,6 +19,11 @@
   --chart-do: #087c78;
   --chart-ph: #6648b7;
   --chart-night: #344c78;
+  --trend-line: #2e8bff;
+  --trend-axis-label: rgba(255, 255, 255, 0.5);
+  --trend-tooltip-background: rgba(14, 24, 60, 0.7);
+  --trend-tooltip-border: rgba(160, 190, 255, 0.18);
+  --trend-range-active: rgba(46, 139, 255, 0.18);
   --ok: #16a34a;
   --warn: #d97706;
   --critical: #dc2626;

@@ -5,6 +5,11 @@ export function prepareTrendRows(readings: Reading[]) {
   return { rows, chartRows: rows.map((row) => ({ ...row, timestamp: Date.parse(row.timestamp) })) };
 }
 
+export function trendMarkerIndices(values: number[]) {
+  if (!values.length) return [];
+  return [...new Set([values.indexOf(Math.min(...values)), values.indexOf(Math.max(...values)), values.length - 1])];
+}
+
 export function nightRanges(rows: Reading[]) {
   if (!rows.length) return [];
   const start = new Date(rows[0].timestamp);

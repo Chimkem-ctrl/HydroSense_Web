@@ -1,4 +1,5 @@
 :root {
+  --c-50: #e8eff3;
   color-scheme: light;
   --page: #f3f7f8;
   --surface: #ffffff;
@@ -27,6 +28,10 @@
   --radius-md: 12px;
   --radius-lg: 18px;
 }
+
+[data-role='admin'] { --role-color: #1b1847; }
+[data-role='manager'] { --role-color: #16314a; }
+[data-role='operator'] { --role-color: #312048; }
 
 [data-theme='dark'] {
   color-scheme: dark;

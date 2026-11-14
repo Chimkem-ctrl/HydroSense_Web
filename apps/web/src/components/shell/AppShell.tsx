@@ -28,7 +28,7 @@ import { NAV_ITEMS, tierConfig } from '../../app/config';
 import { useRole } from '../../app/auth/RoleContext';
 import { signOut } from '../../services/authService';
 import { useSelectedTank } from '../../app/tank/TankContext';
-import { useLatestReading, useOpenAlerts, useTanks } from '../../app/data/hooks';
+import { useLatestReading, useOpenAlerts, usePendingRequests, useTanks } from '../../app/data/hooks';
 import { ErrorState, LoadingState } from '../common/States';
 
 const icons: Record<string, LucideIcon> = {
@@ -60,6 +60,7 @@ export function AppShell() {
   const tanks = useTanks();
   const latestReading = useLatestReading(tankId);
   const alerts = useOpenAlerts();
+  const pendingRequests = usePendingRequests();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -96,8 +97,15 @@ export function AppShell() {
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const openAlerts = (alerts.data ?? []).filter((alert) => alert.status === 'open');
   const criticalAlerts = openAlerts.filter((alert) => alert.severity === 'critical');
+  const pendingCount = role === 'admin' ? (pendingRequests.data?.length ?? 0) : 0;
+  const alertCount = openAlerts.length + pendingCount;
+  const alertLabel = `${alertCount} open ${alertCount === 1 ? 'alert' : 'alerts'}${role === 'admin' && pendingRequests.isError
+    ? ', account requests unavailable'
+    : role === 'admin' && pendingRequests.isLoading
+      ? ', loading account requests'
+      : pendingCount ? `, including ${pendingCount} pending account ${pendingCount === 1 ? 'request' : 'requests'}` : ''}`;
   return (
-    <div className="app-shell glass-shell">
+    <div className="app-shell glass-shell" data-role={role}>
       {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
         <Link to="/" className="brand" aria-label="HydroSense home">
@@ -127,7 +135,7 @@ export function AppShell() {
           )}
         </nav>
         <div className="sidebar-footer">
-          <span className="small muted">Pilot workspace · {role.toUpperCase()}</span>
+          <span className="small muted sidebar-role">Pilot workspace · {role.toUpperCase()}</span>
           <span className="small muted">Days 0–21 · 3-hour sampling</span>
         </div>
       </aside>
@@ -154,8 +162,10 @@ export function AppShell() {
             <span className={`connection-pill ${displayConnection === 'connected' ? 'connection-online' : 'connection-offline'}`} aria-label={`Connection ${displayConnection}`}>
               <span aria-hidden="true">●</span><span>{displayConnection === 'connected' ? 'Live' : displayConnection === 'connecting' ? 'Connecting' : 'Offline'}</span>
             </span>
-            <Link to="/alerts" className="icon-button" aria-label={`${openAlerts.length} open alerts`}>
-              <Bell size={18} /><span>{openAlerts.length}</span>
+            <Link to="/alerts" className="icon-button" aria-label={alertLabel} title={alertLabel}>
+              <Bell size={18} /><span>{alertCount}</span>
+              {role === 'admin' && pendingRequests.isError && <span aria-hidden="true">!</span>}
+              {role === 'admin' && pendingRequests.isLoading && <span aria-hidden="true">…</span>}
             </Link>
             <div className="account-menu">
                <button type="button" className="icon-button" aria-haspopup="menu" aria-expanded={accountMenuOpen} aria-label={`Account menu for ${userName}`} title={userName} onClick={() => setAccountMenuOpen((open) => !open)}>

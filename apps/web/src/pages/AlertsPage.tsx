@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { formatManilaDateTime, validateAcknowledgeNote } from '@hydrosense/shared';
 import type { AlertItem } from '@hydrosense/shared';
 import { api } from '../app/api';
 import { useRole } from '../app/auth/RoleContext';
 import { useSelectedTank } from '../app/tank/TankContext';
-import { useTanks } from '../app/data/hooks';
+import { usePendingRequests, useTanks } from '../app/data/hooks';
 import { PageHeading } from '../components/common/PageHeading';
 import { StatusBadge } from '../components/readings/StatusBadge';
 import { EmptyState, ErrorState, LoadingState, StaleQueryState } from '../components/common/States';
@@ -21,6 +22,7 @@ export default function AlertsPage() {
   const { role, userName } = useRole();
   const { tankId } = useSelectedTank();
   const tanks = useTanks();
+  const pendingRequests = usePendingRequests();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<AlertTab>('open');
   const [selected, setSelected] = useState<AlertItem | null>(null);
@@ -85,8 +87,20 @@ export default function AlertsPage() {
       <PageHeading title="Alerts center" description="Review open alerts, record acknowledgement notes and view response history." />
       <StaleQueryState updatedAt={query.dataUpdatedAt} />
       <div className="tabs" role="tablist" aria-label="Alert status">
-        {tabs.map((item) => <button key={item.key} type="button" role="tab" aria-selected={tab === item.key} className="tab" onClick={() => setTab(item.key)}>{item.label} ({(query.data ?? []).filter((alert) => alert.status === item.key).length})</button>)}
+        {tabs.map((item) => <button key={item.key} type="button" role="tab" aria-selected={tab === item.key} className="tab" onClick={() => setTab(item.key)}>{item.label} ({(query.data ?? []).filter((alert) => alert.status === item.key).length + (item.key === 'open' && role === 'admin' ? (pendingRequests.data?.length ?? 0) : 0)})</button>)}
       </div>
+      {role === 'admin' && tab === 'open' && (pendingRequests.isLoading || pendingRequests.isError || Boolean(pendingRequests.data?.length)) && (
+        <section className="card stack" aria-label="Pending account requests">
+          <h2 className="card-title">Pending account requests</h2>
+          {pendingRequests.isLoading ? <LoadingState label="Loading account requests" /> : pendingRequests.isError ? <ErrorState error={pendingRequests.error} onRetry={() => void pendingRequests.refetch()} /> : pendingRequests.data?.map((request) => (
+            <div key={request.id}>
+              <strong>New account request: {request.firstName} {request.lastName}</strong>
+              <p className="small muted">Submitted {formatManilaDateTime(request.createdAt)} PHT</p>
+            </div>
+          ))}
+          {!pendingRequests.isLoading && !pendingRequests.isError && <Link className="button" to="/admin/users">Review account requests</Link>}
+        </section>
+      )}
       {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : items.length === 0 ? <EmptyState>{`No ${tab} alerts for the selected tank.`}</EmptyState> : (
         <section className="stack">
           {items.map((alert) => (

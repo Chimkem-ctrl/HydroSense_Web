@@ -8,7 +8,8 @@
   overflow: hidden auto;
   padding: 28px 18px;
   isolation: isolate;
-  background-color: var(--color-navy);
+  --auth-background-image: url("/assets/images/dt%20-%20sensors%20devices%20(1).png");
+  --overlay-opacity: 0.25;
 }
 
 .auth-background::before,

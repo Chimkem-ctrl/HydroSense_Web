@@ -637,7 +637,7 @@
   min-width: 0;
   border: 1px solid var(--op-border);
   border-radius: 9px;
-  background: linear-gradient(145deg, rgba(28, 37, 66, 0.97), rgba(22, 30, 53, 0.98));
+  background: rgba(28, 37, 66, 0.97);
   box-shadow: 0 7px 22px rgba(0, 0, 0, 0.1);
 }
 
@@ -953,7 +953,7 @@
 
 .operator-reading-card.has-critical-reading {
   border-color: rgba(237, 109, 119, 0.25);
-  background: linear-gradient(145deg, rgba(48, 34, 55, 0.97), rgba(30, 28, 51, 0.98));
+  background: rgba(48, 34, 55, 0.97);
 }
 
 .operator-reading-card-top {

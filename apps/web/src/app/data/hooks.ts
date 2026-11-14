@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AdvisoryState, DeviceStatus, Reading, Tank } from '@hydrosense/shared';
 import { api, liveClient } from '../api';
 import { DATA_MODE, tierConfig } from '../config';
+import { useAuth } from '../auth/RoleContext';
+import { authService } from '../../services/authService';
 
 export function useTanks() {
   return useQuery({ queryKey: ['tanks'], queryFn: () => api.listTanks() });
@@ -49,6 +51,16 @@ export function useOpenAlerts(tankId?: string) {
   return useQuery({
     queryKey: ['alerts', tankId ?? 'all'],
     queryFn: async () => (await api.listAlerts(tankId)).filter((alert) => alert.status === 'open'),
+  });
+}
+
+export function usePendingRequests() {
+  const user = useAuth();
+  return useQuery({
+    queryKey: ['pending-requests', user?.id],
+    queryFn: () => authService.listPendingRequests(),
+    enabled: user?.role === 'admin',
+    refetchInterval: tierConfig.refreshIntervalMs,
   });
 }
 
