@@ -63,6 +63,7 @@ backend/
 | `thresholds` | Tank water-quality limits |
 | `advisory_settings` | Salinity and ammonia advisory rules |
 | `alerts` | Active and historical alert records |
+| `sms_alert_queue` | Per-recipient SMS delivery state for new alerts |
 | `alert_responses` | Alert acknowledgement and resolution history |
 | `manual_entries` | Manual measurements and environmental records |
 | `activity_logs` | Hatchery operations and alert/activity records |
@@ -134,6 +135,14 @@ Only `operator` and `manager` may be requested.
 
 ### Tanks and readings
 
+The hardware API accepts timestamped buffered readings with a `sourceId`,
+`recordedAt` (UTC), and `historical` flag. The `(tank_id, source_id)` key
+deduplicates retries. Historical readings are stored without generating
+alerts; only non-historical readings no more than 90 seconds old can trigger
+alerts. Untimed SD readings remain on the device. Hardware fetches alert
+thresholds with `POST /v1/hardware/thresholds` and the hardware API key.
+Deploy the reading replay migration before deploying this API and firmware.
+
 | Method | Path | Required role | Purpose |
 |---|---|---|---|
 | `GET` | `/v1/tanks` | Approved account | List tanks |
@@ -156,6 +165,20 @@ Tank creation body:
 ```
 
 ### Alerts
+
+New alerts queue SMS messages for distinct approved profile phone numbers in
+international E.164 format. The tank's provisioned ESP32 claims its messages
+using the hardware API key. Only one claim is issued per message; a claimed or
+failed send is not retried automatically, so interruptions can leave messages
+undelivered. The `sent` state means modem submission was confirmed, not
+recipient delivery. Pending messages are cancelled if the number no longer
+belongs to an approved profile. Deploy the SMS migration and API together,
+then upload the matching firmware; existing alerts are not backfilled.
+
+The hardware SMS routes are `POST /v1/hardware/sms/claim` and
+`POST /v1/hardware/sms/complete`, authenticated with `X-Hardware-Api-Key`.
+The shared key authenticates hardware collectively, not individual devices;
+restrict access to it and rotate it if compromised.
 
 | Method | Path | Authentication | Purpose |
 |---|---|---|---|
